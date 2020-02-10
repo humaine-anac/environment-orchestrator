@@ -1,0 +1,42 @@
+{
+  "name": "ANAC-environment-orchestrator",
+  "version": "0.0.1",
+  "private": true,
+  "main": "ANAC-environment-orchestrator.js",
+  "scripts": {
+    "start": "node ANAC-environment-orchestrator.js -level 2 > eo001.log &",
+    "pretest": "eslint --ignore-path .gitignore .",
+    "start-docker": "node ANAC-environment-orchestrator.js -level 2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.ibm.com:CEL/ANAC-environment-orchestrator.git"
+  },
+  "author": "Jeff Kephart",
+  "dependencies": {
+    "@cel/celio": "^2.14.0",
+    "@cel/discover": "^1.1.11",
+    "@cel/logger": "^1.0.0",
+    "express": "3.4.7",
+    "uuid": "*",
+    "dotenv": "^4.0.0",
+    "lodash": "^4.17.11",
+    "prettier": "^1.16.1",
+    "xregexp": "^2.0"
+  },
+  "register": {
+    "instanceName": "ANAC-environment-orchestrator",
+    "serviceType": "ANAC-environment-orchestrator",
+    "testRoute": "/test",
+    "testInterval": 30,
+    "launchInvocation": "nohup node ANAC-environment-orchestrator.js -port 14010 -level 2 > eo001.log &",
+    "lcManagerDiscover": {
+      "host": "localhost",
+      "port": 1111
+    },
+    "lcManagerRegister": {
+      "host": "localhost",
+      "port": 1111
+    }
+  }
+}

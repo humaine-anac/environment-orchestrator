@@ -1,0 +1,19 @@
+{
+  "run": "node",
+  "args": [
+    "--use-strict",
+    "anac-environment-orchestrator.js",
+    "-level",
+    "2"
+  ],
+  "watcher": "http://embodied-ai.sl.cloud9.ibm.com:7777",
+  "id": "anac-environment-orchestrator",
+  "description": "https://us-south.git.cloud.ibm.com/anac-negotiation/anac-environment-orchestrator",
+  "tags": [
+    "anac",
+    "orchestrator"
+  ],
+  "host": "embodied-ai.sl.cloud9.ibm.com",
+  "port": "14010",
+  "log": "eo001.log"
+}
