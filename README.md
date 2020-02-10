@@ -10,7 +10,6 @@ cd anac-environment-orchestrator
 cp assistantParams.json.template assistantParams.json
 cp cog.json.template cog.json
 ```
-Edit the file assistantParams.json to include the correct apikey, url, and assistantId for the Watson Assistant skill.
 
 Edit the `watcher` and `host` lines in the file cog.json to reflect the name of the host on which your code is installed.
 
