@@ -438,13 +438,14 @@ function getDataFromServiceType(serviceType, path) {
   }
 }
 
-//function options2URL(options) {
-//  let protocol = options.protocol || 'http';
-//  let url = protocol + '://' + options.host;
-//  if (options.port) url += ':' + options.port;
-//  if (options.path) url  += options.path;
-//  return url;
-//}
+function options2URL(options) {
+  let protocol = options.protocol || 'http';
+  let url = protocol + '://' + options.host;
+  if (options.port) url += ':' + options.port;
+  if (options.path) url  += options.path;
+  return url;
+}
+
 //
 //function applyGate(agentResponses) {
 //  logExpression("In applyGate, agentResponses are: ", 2);
