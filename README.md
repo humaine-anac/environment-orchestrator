@@ -7,7 +7,6 @@ How to install the Environment Orchestrator
 ```sh
 git clone git@us-south.git.cloud.ibm.com:anac-negotiation/anac-environment-orchestrator.git
 cd anac-environment-orchestrator
-cp assistantParams.json.template assistantParams.json
 cp cog.json.template cog.json
 ```
 
