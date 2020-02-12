@@ -15,7 +15,9 @@
   "author": "Jeff Kephart",
   "dependencies": {
     "@cel/logger": "^1.0.0",
-    "express": "3.4.7",
+    "express": "^4.0.0",
+    "method-override": "*",
+    "body-parser": "*",
     "uuid": "*",
     "dotenv": "^4.0.0",
     "lodash": "^4.17.11",
