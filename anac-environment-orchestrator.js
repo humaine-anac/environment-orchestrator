@@ -238,23 +238,29 @@ function initializeUtilities(negotiators) {
   });
 }
 
-async function getUtilityInfo(negotiatorInfo) {
+function getUtilityInfo(negotiatorInfo) {
   logExpression("In getUtilityInfo, contacting agent specified by: ", 2);
   logExpression(negotiatorInfo, 2);
-  try {
-    const { error, data } = await wrapper(
-      getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type)
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  } 
+  return getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type);
 }
+
+//async function getUtilityInfo(negotiatorInfo) {
+//  logExpression("In getUtilityInfo, contacting agent specified by: ", 2);
+//  logExpression(negotiatorInfo, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type)
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  } 
+//}
 
 // Send utility information to specified agent
 async function sendUtilityInfo(negotiatorInfo, utilityInfo) {
