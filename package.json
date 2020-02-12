@@ -23,6 +23,7 @@
     "lodash": "^4.17.11",
     "prettier": "^1.16.1",
     "xregexp": "^2.0",
+    "request": "*",
     "request-promise": "*"
   },
   "register": {
