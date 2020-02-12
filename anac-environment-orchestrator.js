@@ -172,7 +172,7 @@ function queueMessage(message) {
 app.get('/calculateUtility/:agentRole', (req, res) => {
   let agentRole = req.params.agentRole;
   let utilityBundle;
-  if(agentRole == 'buyer') {
+  if(agentRole == 'human') {
     utilityBundle = require('./buyerUtilityBundle.json');
   }
   else {
