@@ -160,7 +160,99 @@ function queueMessage(message) {
   return;
 }
 
-app.get('/startRound', (req, res) => {
+app.post('/startRound', (req, res) => {
+  logExpression("Inside /startRound (POST).", 2);
+  if(req.body) {
+    let roundInfo = req.body;
+    let roundNumber = roundInfo.roundNumber;
+    let durations = roundInfo.durations;
+    let proms = [];
+
+    roundInfo.agents.forEach(agentInfo => {
+      let negotiatorInfo = {
+        id: agentInfo.id,
+        type: "agent",
+        role: "seller",
+        name: agentInfo.name
+      };
+      let utilityInfo = agentInfo.utilityFunction;
+      utilityInfo.name = negotiatorInfo.name;
+      let prom = sendUtilityInfo(negotiatorInfo, utilityInfo);
+      proms.push(prom);
+    });
+    Promise.all(proms)
+    .then(values => {
+      logExpression("Promise all results: ", 2);
+      logExpression(values, 2);
+      return values;
+    })
+    .then(agentResponses => {
+      res.json(agentResponses);
+      wait(1000 * durations.warmUp)
+      .then(() => {
+        let startRoundMessage = {
+          roundDuration: durations.round,
+          roundNumber: roundNumber,
+          timestamp: new Date()
+        };
+        sendMessages(startRound, startRoundMessage, negotiatorIDs);
+      })
+      .then(() => {
+        wait(1000 * roundDuration)
+        .then(() => {
+          let endRoundMessage = {
+            roundNumber: roundNumber,
+            timestamp: new Date()
+          };
+          sendMessages(endRound, endRoundMessage, negotiatorIDs);
+        });
+      });
+    })
+    .catch(err => {
+      res.json(err);
+    });
+  }
+  else {
+    res.json({"msg": "No POST body provided."});
+  }
+});
+
+function initializeUtilities(negotiators) {
+  let proms = [];
+  negotiators.forEach(negotiatorInfo => {
+    let prom = getUtilityInfo(negotiatorInfo)
+    .then(utilityInfo => {
+      utilityInfo.name = negotiatorInfo.name;
+      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
+      logExpression(utilityInfo, 2);
+      return sendUtilityInfo(negotiatorInfo, utilityInfo)
+      .then(response => {
+        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
+        logExpression(response, 2);
+        return response;
+      })
+      .catch(e => {
+        logExpression("Encountered error: ", 2);
+        logExpression(e, 2);
+        return null;
+      });
+    });
+    proms.push(prom);
+  });
+  return Promise.all(proms)
+  .then(values => {
+    logExpression("Values: ", 2);
+    logExpression(values, 2);
+    return values;
+  })
+  .catch(err => {
+    logExpression("Error in Promise.all: ", 2);
+    logExpression(err, 2);
+    return Promise.resolve(null);
+  });
+}
+
+app.get('/startRoundOld', (req, res) => {
   logExpression("Inside /startRound (GET).", 2);
 
   let round = req.query.round || 0;
@@ -205,7 +297,7 @@ http.createServer(app).listen(app.get('port'), () => {
   dc().installExpressRoutes(app);
 });
 
-function initializeUtilities(negotiators) {
+function initializeUtilitiesOld(negotiators) {
   let proms = [];
   negotiators.forEach(negotiatorInfo => {
     let prom = getUtilityInfo(negotiatorInfo)
