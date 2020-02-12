@@ -162,6 +162,8 @@ function queueMessage(message) {
 
 app.post('/startRound', (req, res) => {
   logExpression("Inside /startRound (POST).", 2);
+  let negotiators = appSettings.negotiatorInfo;
+  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
   if(req.body) {
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
