@@ -9,6 +9,7 @@ const path = require('path');
 const uuidv1 = require('uuid/v1');
 const { logExpression, setLogLevel } = require('@cel/logger');
 const dc = require('@cel/discover');
+const request = require('request');
 
 let myPort = appSettings.defaultPort || 14010;
 let logLevel = 1;
@@ -388,7 +389,6 @@ function sendMessages(func, message, negotiatorIDs) {
   });
 }
 
-let request = require('request');
 function postDataToServiceType(json, serviceType, path) {
   let serviceMap = appSettings.serviceMap;
   if(serviceMap[serviceType]) {
