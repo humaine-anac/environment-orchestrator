@@ -13,9 +13,6 @@ const request = require('request-promise');
 let myPort = appSettings.defaultPort || 14010;
 let logLevel = 1;
 
-const roundWarmupDuration = appSettings.roundWarmupDuration || 5;
-const roundDuration = appSettings.roundDuration || 120;
-
 process.argv.forEach((val, index, array) => {
   if (val === '-port') {
     myPort = array[index + 1];
@@ -29,6 +26,29 @@ process.argv.forEach((val, index, array) => {
 setLogLevel(logLevel);
 
 const app = express();
+
+let GLOB = {
+  negotiatorInfo: appSettings.negotiatorInfo
+};
+
+//"negotiatorInfo": [
+//    {
+//       "name": "HumanUI",
+//       "protocol": "http",
+//       "host": "embodied-ai.sl.cloud9.ibm.com",
+//       "port": 10101,
+//       "type": "human",
+//       "role": "buyer"
+//    }
+// ],
+// "serviceInfo": [
+//    {
+//       "name": "utility-generator",
+//       "protocol": "http",
+//       "host": "embodied-ai.sl.cloud9.ibm.com",
+//       "port": 7021
+//    }
+// ]
 
 app.configure(() => {
   app.set('port', process.env.PORT || myPort);
@@ -64,7 +84,7 @@ app.get('/sendOffer', (req, res) => {
       environmentUUID: environmentUUID || null
     };
 
-    let negotiators = appSettings.negotiatorInfo;
+    let negotiators = GLOB.negotiatorInfo;
     let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     if(allowMessage(message)) {
@@ -98,7 +118,7 @@ app.post('/relayMessage', (req, res) => {
     let message = req.body;
     logExpression("message: ", 2);
     logExpression(message, 2);
-    let negotiators = appSettings.negotiatorInfo;
+    let negotiators = GLOB.negotiatorInfo;
     let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     if(allowMessage(message)) {
@@ -148,15 +168,36 @@ function queueMessage(message) {
   return;
 }
 
+// Test route for calculateUtility
+app.get('/calculateUtility/:agentType', (req, res) => {
+  let agentType = req.params.agentType;
+  let utilityBundle;
+  if(agentRole == 'buyer') {
+    utilityBundle = require('./buyerUtilityBundle.json');
+  }
+  else {
+    utilityBundle = require('./sellerUtilityBundle.json');
+  }
+  return calculateUtility(agentType, utilityBundle)
+  .then(calculatedUtility => {
+    res.json(calculatedUtility);
+  })
+  .catch(error => {
+    res.status(500).send(error);
+  });
+});
+
 app.post('/startRound', (req, res) => {
   logExpression("Inside /startRound (POST).", 2);
-  let negotiators = appSettings.negotiatorInfo;
-  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+  let negotiators = GLOB.negotiatorInfo;
+
   if(req.body) {
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
     let proms = [];
+    
+    let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     roundInfo.agents.forEach(agentInfo => {
       let negotiatorInfo = {
@@ -188,7 +229,7 @@ app.post('/startRound', (req, res) => {
         sendMessages(startRound, startRoundMessage, negotiatorIDs);
       })
       .then(() => {
-        wait(1000 * roundDuration)
+        wait(1000 * durations.round)
         .then(() => {
           let endRoundMessage = {
             roundNumber: roundNumber,
@@ -207,49 +248,14 @@ app.post('/startRound', (req, res) => {
   }
 });
 
-function initializeUtilities(negotiators) {
-  let proms = [];
-  negotiators.forEach(negotiatorInfo => {
-    let prom = getUtilityInfo(negotiatorInfo)
-    .then(utilityInfo => {
-      utilityInfo.name = negotiatorInfo.name;
-      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
-      logExpression(utilityInfo, 2);
-      return sendUtilityInfo(negotiatorInfo, utilityInfo)
-      .then(response => {
-        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
-        logExpression(response, 2);
-        return response;
-      })
-      .catch(e => {
-        logExpression("Encountered error: ", 2);
-        logExpression(e, 2);
-        return null;
-      });
-    });
-    proms.push(prom);
-  });
-  return Promise.all(proms)
-  .then(values => {
-    logExpression("Values: ", 2);
-    logExpression(values, 2);
-    return values;
-  })
-  .catch(err => {
-    logExpression("Error in Promise.all: ", 2);
-    logExpression(err, 2);
-    return Promise.resolve(null);
-  });
-}
-
 http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
 });
 
-function getUtilityInfo(negotiatorInfo) {
-  logExpression("In getUtilityInfo, contacting agent specified by: ", 2);
-  logExpression(negotiatorInfo, 2);
-  return getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type);
+function calculateUtilityInfo(agentType, utilityBundle) {
+  logExpression("In calculateUtilityInfo, contacting agent of type " + agentType + " with utility bundle: ", 2);
+  logExpression(utilityBundle, 2);
+  return postDataToServiceType(utilityBundle, 'utility-generator', '/calculateUtility/' + agentType);
 }
 
 function sendUtilityInfo(negotiatorInfo, utilityInfo) {
@@ -418,6 +424,41 @@ function options2URL(options) {
 //});
 //
 //function initializeUtilitiesOld(negotiators) {
+//  let proms = [];
+//  negotiators.forEach(negotiatorInfo => {
+//    let prom = getUtilityInfo(negotiatorInfo)
+//    .then(utilityInfo => {
+//      utilityInfo.name = negotiatorInfo.name;
+//      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
+//      logExpression(utilityInfo, 2);
+//      return sendUtilityInfo(negotiatorInfo, utilityInfo)
+//      .then(response => {
+//        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
+//        logExpression(response, 2);
+//        return response;
+//      })
+//      .catch(e => {
+//        logExpression("Encountered error: ", 2);
+//        logExpression(e, 2);
+//        return null;
+//      });
+//    });
+//    proms.push(prom);
+//  });
+//  return Promise.all(proms)
+//  .then(values => {
+//    logExpression("Values: ", 2);
+//    logExpression(values, 2);
+//    return values;
+//  })
+//  .catch(err => {
+//    logExpression("Error in Promise.all: ", 2);
+//    logExpression(err, 2);
+//    return Promise.resolve(null);
+//  });
+//}
+
+//function initializeUtilities(negotiators) {
 //  let proms = [];
 //  negotiators.forEach(negotiatorInfo => {
 //    let prom = getUtilityInfo(negotiatorInfo)
