@@ -9,7 +9,7 @@ const path = require('path');
 const uuidv1 = require('uuid/v1');
 const { logExpression, setLogLevel } = require('@cel/logger');
 const dc = require('@cel/discover');
-const request = require('request');
+const request = require('request-promise');
 
 let myPort = appSettings.defaultPort || 14010;
 let logLevel = 1;
