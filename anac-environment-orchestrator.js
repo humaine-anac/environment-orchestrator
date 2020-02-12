@@ -295,8 +295,8 @@ app.get('/startRoundOld', (req, res) => {
 
 http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
-  dc().init({port: myPort});
-  dc().installExpressRoutes(app);
+ // dc().init({port: myPort});
+ // dc().installExpressRoutes(app);
 });
 
 function initializeUtilitiesOld(negotiators) {
