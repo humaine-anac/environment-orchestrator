@@ -252,10 +252,10 @@ http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
 });
 
-function calculateUtilityInfo(agentType, utilityBundle) {
-  logExpression("In calculateUtilityInfo, contacting agent of type " + agentType + " with utility bundle: ", 2);
+function calculateUtility(agentRole, utilityBundle) {
+  logExpression("In calculateUtilityInfo, contacting negotiator of role " + agentRole + " with utility bundle: ", 2);
   logExpression(utilityBundle, 2);
-  return postDataToServiceType(utilityBundle, 'utility-generator', '/calculateUtility/' + agentType);
+  return postDataToServiceType(utilityBundle, 'utility-generator', '/calculateUtility/' + agentRole);
 }
 
 function sendUtilityInfo(negotiatorInfo, utilityInfo) {
