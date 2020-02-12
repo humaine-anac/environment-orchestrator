@@ -47,7 +47,7 @@ app.configure('development', () => {
 
 const getSafe = (p, o, d) =>
   p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
-  
+
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 let environmentUUID = uuidv1();
@@ -63,12 +63,12 @@ app.get('/sendOffer', (req, res) => {
       role: req.query.role || 'buyer',
       environmentUUID: environmentUUID || null
     };
-      
+
     let negotiators = appSettings.negotiatorInfo;
     let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     if(allowMessage(message)) {
-      queueMessage(message);    
+      queueMessage(message);
       return sendMessages(sendMessage, message, negotiatorIDs)
       .then(responses => {
         let response = {
@@ -100,7 +100,7 @@ app.post('/relayMessage', (req, res) => {
     logExpression(message, 2);
     let negotiators = appSettings.negotiatorInfo;
     let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
-    
+
     if(allowMessage(message)) {
       queueMessage(message);
       if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
@@ -244,8 +244,6 @@ function initializeUtilities(negotiators) {
 
 http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
- // dc().init({port: myPort});
- // dc().installExpressRoutes(app);
 });
 
 function getUtilityInfo(negotiatorInfo) {
