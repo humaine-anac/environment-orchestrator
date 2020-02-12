@@ -416,8 +416,12 @@ function getDataFromServiceType(json, serviceType, path) {
       method: 'GET',
       uri: url
     };
+    logExpression("In getDataFromServiceType, rOptions is: ", 2);
+    logExpression(rOptions, 2);
     return request(rOptions)
     .then(response => {
+      logExpression("Got response: ", 2);
+      logExpression(response, 2);
       return response;
     })
     .catch(error => {
