@@ -8,7 +8,6 @@ const express = require('express');
 const path = require('path');
 const uuidv1 = require('uuid/v1');
 const { logExpression, setLogLevel } = require('@cel/logger');
-const dc = require('@cel/discover');
 const request = require('request-promise');
 
 let myPort = appSettings.defaultPort || 14010;
@@ -45,17 +44,6 @@ app.configure(() => {
 app.configure('development', () => {
   app.use(express.errorHandler());
 });
-
-// TBD Replace this -- actually change generateUtility service from GET to POST, so this won't be needed
-// const getDataFromServiceType = promisify(dc().getDataFromServiceType);
-
-//const postDataToServiceType = promisify(postDataToServiceTypeNew);
-
-const wrapper = promise => (
-  promise
-    .then(data => ({ data, error: null }))
-    .catch(error => ({ error, data: null }))
-);
 
 const getSafe = (p, o, d) =>
   p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
@@ -254,85 +242,11 @@ function initializeUtilities(negotiators) {
   });
 }
 
-app.get('/startRoundOld', (req, res) => {
-  logExpression("Inside /startRound (GET).", 2);
-
-  let round = req.query.round || 0;
-  
-  let environmentUUID = appSettings.environmentUUID || 'abcdefgh';
-  
-  let negotiators = appSettings.negotiatorInfo;
-  negotiators = negotiators.map(nBlock => {nBlock.environmentUUID = environmentUUID; return nBlock;});
-  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
-
-  initializeUtilities(negotiators)
-  .then(agentResponses => {
-    res.json(agentResponses);
-    wait(1000 * roundWarmupDuration)
-    .then(() => {
-      let startRoundMessage = {
-        roundDuration: roundDuration,
-        roundNumber: round,
-        timestamp: new Date()
-      };
-      sendMessages(startRound, startRoundMessage, negotiatorIDs);
-    })
-    .then(() => {
-      wait(1000 * roundDuration)
-      .then(() => {
-        let endRoundMessage = {
-          roundNumber: round,
-          timestamp: new Date()
-        };
-        sendMessages(endRound, endRoundMessage, negotiatorIDs);
-      });
-    });
-  })
-  .catch(err => {
-    res.json(err);
-  });
-});
-
 http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
  // dc().init({port: myPort});
  // dc().installExpressRoutes(app);
 });
-
-function initializeUtilitiesOld(negotiators) {
-  let proms = [];
-  negotiators.forEach(negotiatorInfo => {
-    let prom = getUtilityInfo(negotiatorInfo)
-    .then(utilityInfo => {
-      utilityInfo.name = negotiatorInfo.name;
-      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
-      logExpression(utilityInfo, 2);
-      return sendUtilityInfo(negotiatorInfo, utilityInfo)
-      .then(response => {
-        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
-        logExpression(response, 2);
-        return response;
-      })
-      .catch(e => {
-        logExpression("Encountered error: ", 2);
-        logExpression(e, 2);
-        return null;
-      });
-    });
-    proms.push(prom);
-  });
-  return Promise.all(proms)
-  .then(values => {
-    logExpression("Values: ", 2);
-    logExpression(values, 2);
-    return values;
-  })
-  .catch(err => {
-    logExpression("Error in Promise.all: ", 2);
-    logExpression(err, 2);
-    return Promise.resolve(null);
-  });
-}
 
 function getUtilityInfo(negotiatorInfo) {
   logExpression("In getUtilityInfo, contacting agent specified by: ", 2);
@@ -340,68 +254,13 @@ function getUtilityInfo(negotiatorInfo) {
   return getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type);
 }
 
-//async function getUtilityInfo(negotiatorInfo) {
-//  logExpression("In getUtilityInfo, contacting agent specified by: ", 2);
-//  logExpression(negotiatorInfo, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      getDataFromServiceType('utility-generator', '/generateUtility/' + negotiatorInfo.type)
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  } 
-//}
-
-// Send utility information to specified agent
-//async function sendUtilityInfo(negotiatorInfo, utilityInfo) {
-//  logExpression("In sendUtilityInformation, sending utility information: ", 2);
-//  logExpression(utilityInfo, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility')
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  }
-//}
 function sendUtilityInfo(negotiatorInfo, utilityInfo) {
   logExpression("In sendUtilityInformation, sending utility information: ", 2);
   logExpression(utilityInfo, 2);
   return postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility');
 }
 
-//async function sendMessage(message, negotiatorID) {
-//  logExpression("In sendMessage, sending message: ", 2);
-//  logExpression(message, 2);
-//  logExpression("To the recipient: ", 2);
-//  logExpression(negotiatorID, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      postDataToServiceType(message, negotiatorID, '/receiveMessage')
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  }
-//}
-async function sendMessage(message, negotiatorID) {
+function sendMessage(message, negotiatorID) {
   logExpression("In sendMessage, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
@@ -409,25 +268,6 @@ async function sendMessage(message, negotiatorID) {
   return postDataToServiceType(message, negotiatorID, '/receiveMessage');
 }
 
-//async function sendRejection(message, negotiatorID) {
-//  logExpression("In sendRejection, sending message: ", 2);
-//  logExpression(message, 2);
-//  logExpression("To the recipient: ", 2);
-//  logExpression(negotiatorID, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      postDataToServiceType(message, negotiatorID, '/receiveRejection')
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  }
-//}
 function sendRejection(message, negotiatorID) {
   logExpression("In sendRejection, sending message: ", 2);
   logExpression(message, 2);
@@ -436,25 +276,6 @@ function sendRejection(message, negotiatorID) {
   return postDataToServiceType(message, negotiatorID, '/receiveRejection');
 }
 
-//async function startRound(message, negotiatorID) {
-//  logExpression("In startRound, sending message: ", 2);
-//  logExpression(message, 2);
-//  logExpression("To the recipient: ", 2);
-//  logExpression(negotiatorID, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      postDataToServiceType(message, negotiatorID, '/startRound')
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  }
-//}
 function startRound(message, negotiatorID) {
   logExpression("In startRound, sending message: ", 2);
   logExpression(message, 2);
@@ -463,26 +284,7 @@ function startRound(message, negotiatorID) {
   return postDataToServiceType(message, negotiatorID, '/startRound');
 }
 
-//async function endRound(message, negotiatorID) {
-//  logExpression("In endRound, sending message: ", 2);
-//  logExpression(message, 2);
-//  logExpression("To the recipient: ", 2);
-//  logExpression(negotiatorID, 2);
-//  try {
-//    const { error, data } = await wrapper(
-//      postDataToServiceType(message, negotiatorID, '/endRound')
-//    );
-//    if(!error && data) {
-//      return data;
-//    }
-//  }
-//  catch(error) {
-//    logExpression("Got error!", 1);
-//    logExpression(error, 1);
-//    return Promise.reject(error);
-//  }
-//}
-async function endRound(message, negotiatorID) {
+function endRound(message, negotiatorID) {
   logExpression("In endRound, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
@@ -577,16 +379,77 @@ function options2URL(options) {
   return url;
 }
 
+// Bad old code, just in case
+//app.get('/startRoundOld', (req, res) => {
+//  logExpression("Inside /startRound (GET).", 2);
 //
-//function applyGate(agentResponses) {
-//  logExpression("In applyGate, agentResponses are: ", 2);
-//  logExpression(agentResponses, 2);
-//  let agentResponsesFiltered = agentResponses.filter(response => {
-//    logExpression("Processing ", 2);
-//    logExpression(response, 2);
-//    return (response && response.response && response.response.metadata && response.response.metadata.role == 'seller');
+//  let round = req.query.round || 0;
+//  
+//  let environmentUUID = appSettings.environmentUUID || 'abcdefgh';
+//  
+//  let negotiators = appSettings.negotiatorInfo;
+//  negotiators = negotiators.map(nBlock => {nBlock.environmentUUID = environmentUUID; return nBlock;});
+//  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+//
+//  initializeUtilities(negotiators)
+//  .then(agentResponses => {
+//    res.json(agentResponses);
+//    wait(1000 * roundWarmupDuration)
+//    .then(() => {
+//      let startRoundMessage = {
+//        roundDuration: roundDuration,
+//        roundNumber: round,
+//        timestamp: new Date()
+//      };
+//      sendMessages(startRound, startRoundMessage, negotiatorIDs);
+//    })
+//    .then(() => {
+//      wait(1000 * roundDuration)
+//      .then(() => {
+//        let endRoundMessage = {
+//          roundNumber: round,
+//          timestamp: new Date()
+//        };
+//        sendMessages(endRound, endRoundMessage, negotiatorIDs);
+//      });
+//    });
+//  })
+//  .catch(err => {
+//    res.json(err);
 //  });
-//  logExpression("Filtered responses: ", 2);
-//  logExpression(agentResponsesFiltered, 2);
-//  return agentResponsesFiltered;
+//});
+//
+//function initializeUtilitiesOld(negotiators) {
+//  let proms = [];
+//  negotiators.forEach(negotiatorInfo => {
+//    let prom = getUtilityInfo(negotiatorInfo)
+//    .then(utilityInfo => {
+//      utilityInfo.name = negotiatorInfo.name;
+//      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
+//      logExpression(utilityInfo, 2);
+//      return sendUtilityInfo(negotiatorInfo, utilityInfo)
+//      .then(response => {
+//        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
+//        logExpression(response, 2);
+//        return response;
+//      })
+//      .catch(e => {
+//        logExpression("Encountered error: ", 2);
+//        logExpression(e, 2);
+//        return null;
+//      });
+//    });
+//    proms.push(prom);
+//  });
+//  return Promise.all(proms)
+//  .then(values => {
+//    logExpression("Values: ", 2);
+//    logExpression(values, 2);
+//    return values;
+//  })
+//  .catch(err => {
+//    logExpression("Error in Promise.all: ", 2);
+//    logExpression(err, 2);
+//    return Promise.resolve(null);
+//  });
 //}

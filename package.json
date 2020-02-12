@@ -14,8 +14,6 @@
   },
   "author": "Jeff Kephart",
   "dependencies": {
-    "@cel/celio": "^2.14.0",
-    "@cel/discover": "^1.1.11",
     "@cel/logger": "^1.0.0",
     "express": "3.4.7",
     "uuid": "*",
