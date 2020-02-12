@@ -161,7 +161,7 @@ function queueMessage(message) {
 }
 
 app.get('/startRound', (req, res) => {
-  logExpression("Inside startRound (GET).", 2);
+  logExpression("Inside /startRound (GET).", 2);
 
   let round = req.query.round || 0;
   
@@ -222,6 +222,7 @@ function initializeUtilities(negotiators) {
       .catch(e => {
         logExpression("Encountered error: ", 2);
         logExpression(e, 2);
+        return null;
       });
     });
     proms.push(prom);
