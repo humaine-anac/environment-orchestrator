@@ -264,102 +264,135 @@ function getUtilityInfo(negotiatorInfo) {
 //}
 
 // Send utility information to specified agent
-async function sendUtilityInfo(negotiatorInfo, utilityInfo) {
+//async function sendUtilityInfo(negotiatorInfo, utilityInfo) {
+//  logExpression("In sendUtilityInformation, sending utility information: ", 2);
+//  logExpression(utilityInfo, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility')
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  }
+//}
+function sendUtilityInfo(negotiatorInfo, utilityInfo) {
   logExpression("In sendUtilityInformation, sending utility information: ", 2);
   logExpression(utilityInfo, 2);
-  try {
-    const { error, data } = await wrapper(
-      postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility')
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  }
+  return postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility');
 }
 
+//async function sendMessage(message, negotiatorID) {
+//  logExpression("In sendMessage, sending message: ", 2);
+//  logExpression(message, 2);
+//  logExpression("To the recipient: ", 2);
+//  logExpression(negotiatorID, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      postDataToServiceType(message, negotiatorID, '/receiveMessage')
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  }
+//}
 async function sendMessage(message, negotiatorID) {
   logExpression("In sendMessage, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
-  try {
-    const { error, data } = await wrapper(
-      postDataToServiceType(message, negotiatorID, '/receiveMessage')
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  }
+  return postDataToServiceType(message, negotiatorID, '/receiveMessage');
 }
 
-async function sendRejection(message, negotiatorID) {
+//async function sendRejection(message, negotiatorID) {
+//  logExpression("In sendRejection, sending message: ", 2);
+//  logExpression(message, 2);
+//  logExpression("To the recipient: ", 2);
+//  logExpression(negotiatorID, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      postDataToServiceType(message, negotiatorID, '/receiveRejection')
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  }
+//}
+function sendRejection(message, negotiatorID) {
   logExpression("In sendRejection, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
-  try {
-    const { error, data } = await wrapper(
-      postDataToServiceType(message, negotiatorID, '/receiveRejection')
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  }
+  return postDataToServiceType(message, negotiatorID, '/receiveRejection');
 }
 
-async function startRound(message, negotiatorID) {
+//async function startRound(message, negotiatorID) {
+//  logExpression("In startRound, sending message: ", 2);
+//  logExpression(message, 2);
+//  logExpression("To the recipient: ", 2);
+//  logExpression(negotiatorID, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      postDataToServiceType(message, negotiatorID, '/startRound')
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  }
+//}
+function startRound(message, negotiatorID) {
   logExpression("In startRound, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
-  try {
-    const { error, data } = await wrapper(
-      postDataToServiceType(message, negotiatorID, '/startRound')
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  }
+  return postDataToServiceType(message, negotiatorID, '/startRound');
 }
 
+//async function endRound(message, negotiatorID) {
+//  logExpression("In endRound, sending message: ", 2);
+//  logExpression(message, 2);
+//  logExpression("To the recipient: ", 2);
+//  logExpression(negotiatorID, 2);
+//  try {
+//    const { error, data } = await wrapper(
+//      postDataToServiceType(message, negotiatorID, '/endRound')
+//    );
+//    if(!error && data) {
+//      return data;
+//    }
+//  }
+//  catch(error) {
+//    logExpression("Got error!", 1);
+//    logExpression(error, 1);
+//    return Promise.reject(error);
+//  }
+//}
 async function endRound(message, negotiatorID) {
   logExpression("In endRound, sending message: ", 2);
   logExpression(message, 2);
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
-  try {
-    const { error, data } = await wrapper(
-      postDataToServiceType(message, negotiatorID, '/endRound')
-    );
-    if(!error && data) {
-      return data;
-    }
-  }
-  catch(error) {
-    logExpression("Got error!", 1);
-    logExpression(error, 1);
-    return Promise.reject(error);
-  }
+  return postDataToServiceType(message, negotiatorID, '/endRound');
 }
 
 function sendMessages(func, message, negotiatorIDs) {
@@ -373,6 +406,7 @@ function sendMessages(func, message, negotiatorIDs) {
     .catch(e => {
       logExpression("Encountered error: ", 2);
       logExpression(e, 2);
+      return null;
     });
     proms.push(prom);
   });
@@ -408,6 +442,7 @@ function postDataToServiceType(json, serviceType, path) {
     .catch(error => {
       logExpression("Error: ", 1);
       logExpression(error, 1);
+      return null;
     });
   }
 }
@@ -434,6 +469,7 @@ function getDataFromServiceType(serviceType, path) {
     .catch(error => {
       logExpression("Error: ", 1);
       logExpression(error, 1);
+      return null;
     });
   }
 }
