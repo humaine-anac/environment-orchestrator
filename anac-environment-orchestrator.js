@@ -9,6 +9,8 @@ const path = require('path');
 const uuidv1 = require('uuid/v1');
 const { logExpression, setLogLevel } = require('@cel/logger');
 const request = require('request-promise');
+let methodOverride = require('method-override');
+let bodyParser = require('body-parser');
 
 let myPort = appSettings.defaultPort || 14010;
 let logLevel = 1;
@@ -25,7 +27,7 @@ process.argv.forEach((val, index, array) => {
 
 setLogLevel(logLevel);
 
-const app = express();
+
 
 let GLOB = {
   negotiatorInfo: appSettings.negotiatorInfo
@@ -50,20 +52,15 @@ let GLOB = {
 //    }
 // ]
 
-app.configure(() => {
-  app.set('port', process.env.PORT || myPort);
-  app.set('views', path.join(__dirname, 'views'));
-  app.set('view engine', 'jade');
-  app.use(express.favicon());
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(path.join(__dirname, 'public')));
-});
+const app = express();
 
-app.configure('development', () => {
-  app.use(express.errorHandler());
-});
+app.set('port', process.env.PORT || myPort);
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'pug');
+app.use(methodOverride());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const getSafe = (p, o, d) =>
   p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
@@ -348,33 +345,6 @@ function postDataToServiceType(json, serviceType, path) {
   }
 }
 
-function getDataFromServiceType(serviceType, path) {
-  let serviceMap = appSettings.serviceMap;
-  logExpression("Inside getDataFromServiceType", 2);
-  if(serviceMap[serviceType]) {
-    let options = serviceMap[serviceType];
-    options.path = path;
-    let url = options2URL(options);
-    let rOptions = {
-      method: 'GET',
-      uri: url
-    };
-    logExpression("In getDataFromServiceType, rOptions is: ", 2);
-    logExpression(rOptions, 2);
-    return request(rOptions)
-    .then(response => {
-      logExpression("Got response: ", 2);
-      logExpression(response, 2);
-      return response;
-    })
-    .catch(error => {
-      logExpression("Error: ", 1);
-      logExpression(error, 1);
-      return null;
-    });
-  }
-}
-
 function options2URL(options) {
   let protocol = options.protocol || 'http';
   let url = protocol + '://' + options.host;
@@ -491,4 +461,31 @@ function options2URL(options) {
 //    logExpression(err, 2);
 //    return Promise.resolve(null);
 //  });
+//}
+
+//function getDataFromServiceType(serviceType, path) {
+//  let serviceMap = appSettings.serviceMap;
+//  logExpression("Inside getDataFromServiceType", 2);
+//  if(serviceMap[serviceType]) {
+//    let options = serviceMap[serviceType];
+//    options.path = path;
+//    let url = options2URL(options);
+//    let rOptions = {
+//      method: 'GET',
+//      uri: url
+//    };
+//    logExpression("In getDataFromServiceType, rOptions is: ", 2);
+//    logExpression(rOptions, 2);
+//    return request(rOptions)
+//    .then(response => {
+//      logExpression("Got response: ", 2);
+//      logExpression(response, 2);
+//      return response;
+//    })
+//    .catch(error => {
+//      logExpression("Error: ", 1);
+//      logExpression(error, 1);
+//      return null;
+//    });
+//  }
 //}
