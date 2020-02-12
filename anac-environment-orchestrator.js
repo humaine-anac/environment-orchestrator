@@ -169,8 +169,8 @@ function queueMessage(message) {
 }
 
 // Test route for calculateUtility
-app.get('/calculateUtility/:agentType', (req, res) => {
-  let agentType = req.params.agentType;
+app.get('/calculateUtility/:agentRole', (req, res) => {
+  let agentRole = req.params.agentRole;
   let utilityBundle;
   if(agentRole == 'buyer') {
     utilityBundle = require('./buyerUtilityBundle.json');
@@ -178,7 +178,7 @@ app.get('/calculateUtility/:agentType', (req, res) => {
   else {
     utilityBundle = require('./sellerUtilityBundle.json');
   }
-  return calculateUtility(agentType, utilityBundle)
+  return calculateUtility(agentRole, utilityBundle)
   .then(calculatedUtility => {
     res.json(calculatedUtility);
   })
