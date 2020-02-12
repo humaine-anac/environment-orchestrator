@@ -3,7 +3,7 @@ if (!envLoaded) console.log('warning:', __filename, '.env cannot be found');
 
 const appSettings = require('./appSettings.json');
 const http = require('http');
-const { promisify } = require('util');
+// const { promisify } = require('util');
 const express = require('express');
 const path = require('path');
 const uuidv1 = require('uuid/v1');
@@ -45,8 +45,10 @@ app.configure('development', () => {
   app.use(express.errorHandler());
 });
 
-const getDataFromServiceType = promisify(dc().getDataFromServiceType);
-const postDataToServiceType = promisify(dc().postDataToServiceType);
+// TBD Replace this -- actually change generateUtility service from GET to POST, so this won't be needed
+// const getDataFromServiceType = promisify(dc().getDataFromServiceType);
+
+//const postDataToServiceType = promisify(postDataToServiceTypeNew);
 
 const wrapper = promise => (
   promise
@@ -195,19 +197,6 @@ app.get('/startRound', (req, res) => {
     res.json(err);
   });
 });
-
-function applyGate(agentResponses) {
-  logExpression("In applyGate, agentResponses are: ", 2);
-  logExpression(agentResponses, 2);
-  let agentResponsesFiltered = agentResponses.filter(response => {
-    logExpression("Processing ", 2);
-    logExpression(response, 2);
-    return (response && response.response && response.response.metadata && response.response.metadata.role == 'seller');
-  });
-  logExpression("Filtered responses: ", 2);
-  logExpression(agentResponsesFiltered, 2);
-  return agentResponsesFiltered;
-}
 
 http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
@@ -393,44 +382,68 @@ function sendMessages(func, message, negotiatorIDs) {
   });
 }
 
-//app.get('/sendOfferOld', (req, res) => {
-//  logExpression("Inside sendOffer (GET).", 2);
-//  if(req.query.text) {
-//    let message = {
-//      text: req.query.text,
-//      speaker: req.query.speaker || 'Human',
-//      addressee: req.query.addressee || null,
-//      role: req.query.role || 'buyer',
-//      environmentUUID: environmentUUID || null
-//    };
-//      
-//    let negotiatorIDs = ["ANAC-agent1","ANAC-agent2","ANAC-Human"];
+let request = require('request');
+function postDataToServiceType(json, serviceType, path) {
+  let serviceMap = appSettings.serviceMap;
+  if(serviceMap[serviceType]) {
+    let options = serviceMap[serviceType];
+    options.path = path;
+    let url = options2URL(options);
+    let rOptions = {
+      method: 'POST',
+      uri: url,
+      body: json,
+      json: true
+    };
+    return request(rOptions)
+    .then(response => {
+      return response;
+    })
+    .catch(error => {
+      logExpression("Error: ", 1);
+      logExpression(error, 1);
+    });
+  }
+}
+
+function getDataFromServiceType(json, serviceType, path) {
+  let serviceMap = appSettings.serviceMap;
+  if(serviceMap[serviceType]) {
+    let options = serviceMap[serviceType];
+    options.path = path;
+    let url = options2URL(options);
+    let rOptions = {
+      method: 'GET',
+      uri: url
+    };
+    return request(rOptions)
+    .then(response => {
+      return response;
+    })
+    .catch(error => {
+      logExpression("Error: ", 1);
+      logExpression(error, 1);
+    });
+  }
+}
+
+//function options2URL(options) {
+//  let protocol = options.protocol || 'http';
+//  let url = protocol + '://' + options.host;
+//  if (options.port) url += ':' + options.port;
+//  if (options.path) url  += options.path;
+//  return url;
+//}
 //
-//    return sendMessages(negotiatorIDs, message)
-//    .then(agentResponses => {
-//      res.json(agentResponses);
-//      return applyGate(agentResponses);
-//    })
-//    .then(gatedResponses => {
-//      logExpression("Gated responses: ", 2);
-//      logExpression(gatedResponses, 2);
-//      if(gatedResponses.length) {
-//        let indx = parseInt(Math.random() * gatedResponses.length);
-//        logExpression("indx = " + indx, 2);
-//        let selectedResponse = gatedResponses[indx];
-//        logExpression(selectedResponse, 2);
-//        let selectedMessage = selectedResponse.response.metadata;
-//        logExpression("Sending selected message: ", 2);
-//        logExpression(selectedMessage, 2);
-//        sendMessages(negotiatorIDs, selectedMessage)
-//        .then(secondAgentResponses => {
-//          logExpression("Received secondary agent responses to selected message: ", 2);
-//          logExpression(secondAgentResponses, 2);
-//        });
-//      }
-//    })
-//    .catch(err => {
-//      res.json(err);
-//    });
-//  }
-//});
+//function applyGate(agentResponses) {
+//  logExpression("In applyGate, agentResponses are: ", 2);
+//  logExpression(agentResponses, 2);
+//  let agentResponsesFiltered = agentResponses.filter(response => {
+//    logExpression("Processing ", 2);
+//    logExpression(response, 2);
+//    return (response && response.response && response.response.metadata && response.response.metadata.role == 'seller');
+//  });
+//  logExpression("Filtered responses: ", 2);
+//  logExpression(agentResponsesFiltered, 2);
+//  return agentResponsesFiltered;
+//}
