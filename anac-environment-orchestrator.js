@@ -412,8 +412,9 @@ function postDataToServiceType(json, serviceType, path) {
   }
 }
 
-function getDataFromServiceType(json, serviceType, path) {
+function getDataFromServiceType(serviceType, path) {
   let serviceMap = appSettings.serviceMap;
+  logExpression("Inside getDataFromServiceType", 2);
   if(serviceMap[serviceType]) {
     let options = serviceMap[serviceType];
     options.path = path;
