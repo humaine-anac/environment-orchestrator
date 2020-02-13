@@ -213,6 +213,7 @@ app.post('/startRound', (req, res) => {
     });
     GLOB.serviceMap = serviceMap;
     GLOB.negotiatorsInfo = negotiatorsInfo;
+    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
     logExpression("serviceMap and negotiatorsInfo are now: ", 2);
     logExpression(GLOB, 2);
 
@@ -228,6 +229,7 @@ app.post('/startRound', (req, res) => {
       }
       proms.push(prom);
     });
+    
     Promise.all(proms)
     .then(values => {
       logExpression("Promise all results: ", 2);
