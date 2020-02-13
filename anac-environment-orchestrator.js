@@ -199,7 +199,9 @@ app.post('/calculateUtility/:agentName', (req, res) => {
   let utilityInfo = null;
   if(negotiatorsInfo && negotiatorsInfo.length) {
     negotiatorInfo = negotiatorsInfo[0];
-    utilityInfo = JSON.parse(JSON.stringify(negotiatorInfo.utility)) || null;
+    if(negotiatorInfo.utilityFunction) {
+      utilityInfo = JSON.parse(JSON.stringify(negotiatorInfo.utilityFunction));
+    }
   }
   
   if(req.body && utilityInfo) {
