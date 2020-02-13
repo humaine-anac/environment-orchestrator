@@ -118,8 +118,10 @@ function updateTotals(message) {
     agents.forEach(agent => {
       if(!GLOB.totals) GLOB.totals = {};
       if(!GLOB.totals[agent]) {
-        GLOB.totals[agent].price = 0.0;
-        GLOB.totals[agent].quantity = {};
+        GLOB.totals[agent] = {
+          price: 0.0,
+          quantity:{}
+        };
       }
       GLOB.totals[agent].price += getSafe(['bid', 'price', 'value'], message, 0.0);
       Object.keys(message.bid.quantity).forEach(good => {
