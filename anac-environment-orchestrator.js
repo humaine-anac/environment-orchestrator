@@ -193,6 +193,8 @@ app.get('/calculateUtility/:agentRole', (req, res) => {
 app.post('/calculateUtility/:agentName', (req, res) => {
   let agentName = req.params.agentName;
   let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
+  logExpression("negotiatorsInfo: ", 2);
+  logExpression(negotiatorsInfo, 2);
   let negotiatorInfo = null;
   let utilityInfo = null;
   if(negotiatorsInfo && negotiatorsInfo.length) {
