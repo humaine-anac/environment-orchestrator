@@ -172,16 +172,16 @@ function queueMessage(message) {
 }
 
 // Test route for calculateUtility
-app.get('/calculateUtility/:agentRole', (req, res) => {
-  let agentRole = req.params.agentRole;
+app.get('/calculateUtility/:agentType', (req, res) => {
+  let agentType = req.params.agentType;
   let utilityBundle;
-  if(agentRole == 'human') {
+  if(agentType == 'human') {
     utilityBundle = require('./buyerUtilityBundle.json');
   }
   else {
     utilityBundle = require('./sellerUtilityBundle.json');
   }
-  return calculateUtility(agentRole, utilityBundle)
+  return calculateUtility(agentType, utilityBundle)
   .then(calculatedUtility => {
     res.json(calculatedUtility);
   })
@@ -206,10 +206,10 @@ app.post('/calculateUtility/:agentName', (req, res) => {
   
   if(req.body && utilityInfo) {
     utilityInfo.bundle = req.body;
-    let agentRole = negotiatorInfo.role;
+    let agentType = negotiatorInfo.type;
     logExpression("utilityInfo: ", 2);
     logExpression(utilityInfo, 2);
-    return calculateUtility(agentRole, utilityInfo)
+    return calculateUtility(agentType, utilityInfo)
     .then(calculatedUtility => {
       res.json(calculatedUtility);
     })
@@ -249,6 +249,8 @@ app.post('/startRound', (req, res) => {
         "host": agentInfo.host,
         "port": agentInfo.port
       };
+      agentInfo.type = 'agent';
+      agentInfo.role = 'seller';
       negotiatorsInfo.push(agentInfo);
     });
     GLOB.serviceMap = serviceMap;
