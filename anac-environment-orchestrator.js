@@ -218,7 +218,7 @@ app.post('/startRound', (req, res) => {
 
     negotiatorsInfo.forEach(negotiatorInfo => {
       let utilityInfo = negotiatorInfo.utilityFunction;
-      utilityInfo.name = negotiatorInfo.name;
+      utilityInfo.name = getSafe(['name'], negotiatorInfo, null);
       let prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
       proms.push(prom);
     });
