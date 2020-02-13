@@ -30,7 +30,8 @@ setLogLevel(logLevel);
 
 
 let GLOB = {
-  negotiatorInfo: appSettings.negotiatorInfo
+  negotiatorsInfo: appSettings.negotiatorsInfo,
+  serviceMap: appSettings.serviceMap
 };
 
 //"negotiatorInfo": [
@@ -81,12 +82,12 @@ app.get('/sendOffer', (req, res) => {
       environmentUUID: environmentUUID || null
     };
 
-    let negotiators = GLOB.negotiatorInfo;
-    let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+    let negotiatorsInfo = GLOB.negotiatorsInfo;
+    //let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     if(allowMessage(message)) {
       queueMessage(message);
-      return sendMessages(sendMessage, message, negotiatorIDs)
+      return sendMessages(sendMessage, message, negotiatorsInfo)
       .then(responses => {
         let response = {
           "status": "Acknowledged",
@@ -115,13 +116,13 @@ app.post('/relayMessage', (req, res) => {
     let message = req.body;
     logExpression("message: ", 2);
     logExpression(message, 2);
-    let negotiators = GLOB.negotiatorInfo;
-    let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+    let negotiatorsInfo = GLOB.negotiatorsInfo;
+    //let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
 
     if(allowMessage(message)) {
       queueMessage(message);
       if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
-      return sendMessages(sendMessage, message, negotiatorIDs)
+      return sendMessages(sendMessage, message, negotiatorsInfo)
       .then(responses => {
         let response = {
           "status": "Acknowledged",
@@ -131,7 +132,7 @@ app.post('/relayMessage', (req, res) => {
         res.json(response);
       })
       .catch(err => {
-        res.send(500, err);
+        res.status(500).send(err);
       });
     }
     else {
@@ -140,7 +141,7 @@ app.post('/relayMessage', (req, res) => {
     }
   }
   else {
-    res.send(500, {"msg": "No message supplied."});
+    res.status(500).send({"msg": "No message supplied."});
   }
 });
 
@@ -186,7 +187,6 @@ app.get('/calculateUtility/:agentRole', (req, res) => {
 
 app.post('/startRound', (req, res) => {
   logExpression("Inside /startRound (POST).", 2);
-  let negotiators = GLOB.negotiatorInfo;
 
   if(req.body) {
     let roundInfo = req.body;
@@ -194,18 +194,31 @@ app.post('/startRound', (req, res) => {
     let durations = roundInfo.durations;
     let proms = [];
     
-    let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
-
+    let serviceMap = JSON.parse(JSON.stringify(GLOB.serviceMap));
+    let negotiatorsInfo = JSON.parse(JSON.stringify(GLOB.negotiatorsInfo));
+    let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
+    negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
+      if(negotiatorInfo.type == 'human') negotiatorInfo.utilityFunction = humanUtility;
+      return negotiatorInfo;
+    });
+    
     roundInfo.agents.forEach(agentInfo => {
-      let negotiatorInfo = {
-        id: agentInfo.id,
-        type: "agent",
-        role: "seller",
-        name: agentInfo.name
+      serviceMap[agentInfo.name] = {
+        "protocol": agentInfo.protocol || "http",
+        "host": agentInfo.host,
+        "port": agentInfo.port
       };
-      let utilityInfo = agentInfo.utilityFunction;
+      negotiatorsInfo.push(agentInfo);
+    });
+    GLOB.serviceMap = serviceMap;
+    GLOB.negotiatorsInfo = negotiatorsInfo;
+    logExpression("serviceMap and negotiatorsInfo are now: ", 2);
+    logExpression(GLOB, 2);
+
+    negotiatorsInfo.forEach(negotiatorInfo => {
+      let utilityInfo = negotiatorInfo.utilityFunction;
       utilityInfo.name = negotiatorInfo.name;
-      let prom = sendUtilityInfo(negotiatorInfo, utilityInfo);
+      let prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
       proms.push(prom);
     });
     Promise.all(proms)
@@ -255,10 +268,10 @@ function calculateUtility(agentRole, utilityBundle) {
   return postDataToServiceType(utilityBundle, 'utility-generator', '/calculateUtility/' + agentRole);
 }
 
-function sendUtilityInfo(negotiatorInfo, utilityInfo) {
+function sendUtilityInfo(negotiatorID, utilityInfo) {
   logExpression("In sendUtilityInformation, sending utility information: ", 2);
   logExpression(utilityInfo, 2);
-  return postDataToServiceType(utilityInfo, negotiatorInfo.id, '/setUtility');
+  return postDataToServiceType(utilityInfo, negotiatorID, '/setUtility');
 }
 
 function sendMessage(message, negotiatorID) {
@@ -321,10 +334,10 @@ function sendMessages(func, message, negotiatorIDs) {
   });
 }
 
-function postDataToServiceType(json, serviceType, path) {
-  let serviceMap = appSettings.serviceMap;
-  if(serviceMap[serviceType]) {
-    let options = serviceMap[serviceType];
+function postDataToServiceType(json, serviceID, path) {
+  let serviceMap = GLOB.serviceMap;
+  if(serviceMap[serviceID]) {
+    let options = serviceMap[serviceID];
     options.path = path;
     let url = options2URL(options);
     let rOptions = {
