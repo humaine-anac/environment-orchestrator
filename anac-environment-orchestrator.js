@@ -286,6 +286,8 @@ app.post('/startRound', (req, res) => {
     });
     GLOB.serviceMap = serviceMap;
     GLOB.negotiatorsInfo = negotiatorsInfo;
+    GLOB.queue = [];
+    GLOB.totals = {};
     let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
     logExpression("serviceMap and negotiatorsInfo are now: ", 2);
     logExpression(GLOB, 2);
