@@ -31,7 +31,9 @@ setLogLevel(logLevel);
 
 let GLOB = {
   negotiatorsInfo: appSettings.negotiatorsInfo,
-  serviceMap: appSettings.serviceMap
+  serviceMap: appSettings.serviceMap,
+  queue: [],
+  totals: null
 };
 
 //"negotiatorInfo": [
@@ -69,7 +71,6 @@ const getSafe = (p, o, d) =>
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 let environmentUUID = uuidv1();
-let queue = [];
 
 app.get('/sendOffer', (req, res) => {
   logExpression("Inside sendOffer (GET).", 2);
@@ -109,6 +110,29 @@ app.get('/sendOffer', (req, res) => {
   }
 });
 
+function updateTotals(message) {
+  let bidType = getSafe(['bid', 'type'], message, null);
+  if(bidType == 'Accept') {
+    // do stuff
+    let agents = [message.speaker, message.addressee];
+    agents.forEach(agent => {
+      if(!GLOB.totals) GLOB.totals = {};
+      if(!GLOB.totals[agent]) {
+        GLOB.totals[agent].price = 0.0;
+        GLOB.totals[agent].quantity = {};
+      }
+      GLOB.totals[agent].price += getSafe(['bid', 'price', 'value'], message, 0.0);
+      Object.keys(message.bid.quantity).forEach(good => {
+        if(!GLOB.totals[agent].quantity[good]) GLOB.totals[agent].quantity[good] = 0;
+        GLOB.totals[agent].quantity[good] += getSafe(['bid', 'quantity', good], message, 0);
+      });
+    });
+    logExpression("Round totals updated to: ", 2);
+    logExpression(GLOB.totals, 2);
+  }
+  return;
+}
+
 app.post('/relayMessage', (req, res) => {
   logExpression("Inside relayMessage (POST).", 2);
   if(req.body) {
@@ -120,6 +144,7 @@ app.post('/relayMessage', (req, res) => {
     
     if(allowMessage(message)) {
       queueMessage(message);
+      updateTotals(message);
       let allResponses;
       return sendMessages(sendMessage, message, humanNegotiatorIDs)
       .then(humanResponses => {
@@ -151,7 +176,11 @@ app.post('/relayMessage', (req, res) => {
 });
 
 app.get('/viewQueue', (req, res) => {
-  res.json(queue);
+  res.json(GLOB.queue);
+});
+
+app.get('/viewTotals', (req, res) => {
+  res.json(GLOB.totals);
 });
 
 
@@ -164,7 +193,7 @@ function queueMessage(message) {
   logExpression("In queueMessage, message is: ", 3);
   logExpression(message, 3);
   let msg = JSON.parse(JSON.stringify(message));
-  queue.push({
+  GLOB.queue.push({
     msg,
     timeStamp: new Date()
   });
