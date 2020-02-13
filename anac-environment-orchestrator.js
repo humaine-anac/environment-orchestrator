@@ -82,12 +82,11 @@ app.get('/sendOffer', (req, res) => {
       environmentUUID: environmentUUID || null
     };
 
-    let negotiatorsInfo = GLOB.negotiatorsInfo;
-    //let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
 
     if(allowMessage(message)) {
       queueMessage(message);
-      return sendMessages(sendMessage, message, negotiatorsInfo)
+      return sendMessages(sendMessage, message, negotiatorIDs)
       .then(responses => {
         let response = {
           "status": "Acknowledged",
@@ -116,13 +115,12 @@ app.post('/relayMessage', (req, res) => {
     let message = req.body;
     logExpression("message: ", 2);
     logExpression(message, 2);
-    let negotiatorsInfo = GLOB.negotiatorsInfo;
-    //let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
+    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
 
     if(allowMessage(message)) {
       queueMessage(message);
       if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
-      return sendMessages(sendMessage, message, negotiatorsInfo)
+      return sendMessages(sendMessage, message, negotiatorIDs)
       .then(responses => {
         let response = {
           "status": "Acknowledged",
@@ -136,7 +134,7 @@ app.post('/relayMessage', (req, res) => {
       });
     }
     else {
-      let sender = negotiators.filter(nBlock => {return nBlock.name == message.speaker;})[0].id;
+      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].id;
       sendRejection(message, sender);
     }
   }
@@ -198,7 +196,10 @@ app.post('/startRound', (req, res) => {
     let negotiatorsInfo = JSON.parse(JSON.stringify(GLOB.negotiatorsInfo));
     let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
     negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
+      logExpression("Filling in human Info.", 2);
+      logExpression(negotiatorInfo, 2);
       if(negotiatorInfo.type == 'human') negotiatorInfo.utilityFunction = humanUtility;
+      logExpression(negotiatorInfo, 2);
       return negotiatorInfo;
     });
     
