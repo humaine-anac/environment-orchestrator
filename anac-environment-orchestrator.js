@@ -113,18 +113,25 @@ app.post('/relayMessage', (req, res) => {
   logExpression("Inside relayMessage (POST).", 2);
   if(req.body) {
     let message = req.body;
-    logExpression("message: ", 2);
-    logExpression(message, 2);
-    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
-
+    logExpression("message: ", 3);
+    logExpression(message, 3);
+    let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
+    let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
+    
     if(allowMessage(message)) {
       queueMessage(message);
-      if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
-      return sendMessages(sendMessage, message, negotiatorIDs)
-      .then(responses => {
+      let allResponses;
+      return sendMessages(sendMessage, message, humanNegotiatorIDs)
+      .then(humanResponses => {
+        allResponses = humanResponses;
+        if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
+        return sendMessages(sendMessage, message, agentNegotiatorIDs);
+      })
+      .then(agentResponses => {
+        allResponses = allResponses.concat(agentResponses);
         let response = {
           "status": "Acknowledged",
-          responses
+          allResponses
         };
 
         res.json(response);
@@ -154,8 +161,8 @@ function allowMessage(message) {
 }
 
 function queueMessage(message) {
-  logExpression("In queueMessage, message is: ", 2);
-  logExpression(message, 2);
+  logExpression("In queueMessage, message is: ", 3);
+  logExpression(message, 3);
   let msg = JSON.parse(JSON.stringify(message));
   queue.push({
     msg,
@@ -181,6 +188,31 @@ app.get('/calculateUtility/:agentRole', (req, res) => {
   .catch(error => {
     res.status(500).send(error);
   });
+});
+
+app.post('/calculateUtility/:agentName', (req, res) => {
+  let agentName = req.params.agentName;
+  if(req.body) {
+    let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
+    let negotiatorInfo = null;
+    if(negotiatorsInfo && negotiatorsInfo.length) negotiatorInfo = negotiatorsInfo[0];
+    let utilityInfo = JSON.parse(JSON.stringify(negotiatorInfo.utility));
+    utilityInfo.bundle = req.body;
+    let agentRole = negotiatorInfo.role;
+    logExpression("utilityInfo: ", 2);
+    logExpression(utilityInfo, 2);
+    return calculateUtility(agentRole, utilityInfo)
+    .then(calculatedUtility => {
+      res.json(calculatedUtility);
+    })
+    .catch(error => {
+      res.status(500).send(error);
+    });
+  }
+  else {
+    let error = {"msg": "No POST body supplied."};
+    res.status(500).send(error);
+  }
 });
 
 app.post('/startRound', (req, res) => {
@@ -280,6 +312,8 @@ function calculateUtility(agentRole, utilityBundle) {
 function sendUtilityInfo(negotiatorID, utilityInfo) {
   logExpression("In sendUtilityInformation, sending utility information: ", 2);
   logExpression(utilityInfo, 2);
+  logExpression("To the recipient: ", 2);
+  logExpression(negotiatorID, 2);
   return postDataToServiceType(utilityInfo, negotiatorID, '/setUtility');
 }
 
