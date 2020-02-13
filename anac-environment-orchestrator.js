@@ -192,8 +192,8 @@ app.post('/startRound', (req, res) => {
     let durations = roundInfo.durations;
     let proms = [];
     
-    let serviceMap = JSON.parse(JSON.stringify(GLOB.serviceMap));
-    let negotiatorsInfo = JSON.parse(JSON.stringify(GLOB.negotiatorsInfo));
+    let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
+    let negotiatorsInfo = JSON.parse(JSON.stringify(appSettings.negotiatorsInfo));
     let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
     negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
       logExpression("Filling in human Info.", 2);
@@ -213,7 +213,7 @@ app.post('/startRound', (req, res) => {
     });
     GLOB.serviceMap = serviceMap;
     GLOB.negotiatorsInfo = negotiatorsInfo;
-    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
+    let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
     logExpression("serviceMap and negotiatorsInfo are now: ", 2);
     logExpression(GLOB, 2);
 
