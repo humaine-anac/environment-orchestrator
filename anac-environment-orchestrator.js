@@ -192,11 +192,15 @@ app.get('/calculateUtility/:agentRole', (req, res) => {
 
 app.post('/calculateUtility/:agentName', (req, res) => {
   let agentName = req.params.agentName;
-  if(req.body) {
-    let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
-    let negotiatorInfo = null;
-    if(negotiatorsInfo && negotiatorsInfo.length) negotiatorInfo = negotiatorsInfo[0];
-    let utilityInfo = JSON.parse(JSON.stringify(negotiatorInfo.utility));
+  let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
+  let negotiatorInfo = null;
+  let utilityInfo = null;
+  if(negotiatorsInfo && negotiatorsInfo.length) {
+    negotiatorInfo = negotiatorsInfo[0];
+    utilityInfo = JSON.parse(JSON.stringify(negotiatorInfo.utility)) || null;
+  }
+  
+  if(req.body && utilityInfo) {
     utilityInfo.bundle = req.body;
     let agentRole = negotiatorInfo.role;
     logExpression("utilityInfo: ", 2);
@@ -210,7 +214,7 @@ app.post('/calculateUtility/:agentName', (req, res) => {
     });
   }
   else {
-    let error = {"msg": "No POST body supplied."};
+    let error = {"msg": "No POST body supplied, or else no negotiators."};
     res.status(500).send(error);
   }
 });
