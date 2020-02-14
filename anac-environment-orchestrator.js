@@ -258,6 +258,8 @@ app.post('/startRound', (req, res) => {
   logExpression("Inside /startRound (POST).", 2);
 
   if(req.body) {
+    logExpression("Received body: ", 2);
+    logExpression(req.body, 2);
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
