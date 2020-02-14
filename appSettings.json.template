@@ -1,0 +1,23 @@
+{
+  "defaultPort": "14010",
+  "environmentUUID": "abcdefg",
+  "negotiatorsInfo": [
+      {
+         "name": "chatUI",
+         "type": "human",
+         "role": "buyer"
+      }
+   ],
+   "serviceMap": {
+      "utility-generator": {
+         "protocol": "http",
+         "host": "localhost",
+         "port": 7021
+      },
+      "chatUI": {
+         "protocol": "http",
+         "host": "localhost",
+         "port": 2500
+      }
+   }
+}
