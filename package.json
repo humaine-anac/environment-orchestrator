@@ -4,7 +4,7 @@
   "private": true,
   "main": "anac-environment-orchestrator.js",
   "scripts": {
-    "start": "node anac-environment-orchestrator.js -level 2 > eo001.log &",
+    "start": "node anac-environment-orchestrator.js -port 14010 -level 2 > eo001.log &",
     "pretest": "eslint --ignore-path .gitignore .",
     "start-docker": "node anac-environment-orchestrator.js -level 2"
   },
@@ -25,20 +25,5 @@
     "xregexp": "^2.0",
     "request": "*",
     "request-promise": "*"
-  },
-  "register": {
-    "instanceName": "anac-environment-orchestrator",
-    "serviceType": "anac-environment-orchestrator",
-    "testRoute": "/test",
-    "testInterval": 30,
-    "launchInvocation": "nohup node anac-environment-orchestrator.js -port 14010 -level 2 > eo001.log &",
-    "lcManagerDiscover": {
-      "host": "localhost",
-      "port": 1111
-    },
-    "lcManagerRegister": {
-      "host": "localhost",
-      "port": 1111
-    }
   }
 }
