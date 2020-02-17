@@ -3,7 +3,6 @@ if (!envLoaded) console.log('warning:', __filename, '.env cannot be found');
 
 const appSettings = require('./appSettings.json');
 const http = require('http');
-// const { promisify } = require('util');
 const express = require('express');
 const path = require('path');
 const uuidv1 = require('uuid/v1');
@@ -27,33 +26,12 @@ process.argv.forEach((val, index, array) => {
 
 setLogLevel(logLevel);
 
-
-
 let GLOB = {
   negotiatorsInfo: appSettings.negotiatorsInfo,
   serviceMap: appSettings.serviceMap,
   queue: [],
   totals: null
 };
-
-//"negotiatorInfo": [
-//    {
-//       "name": "HumanUI",
-//       "protocol": "http",
-//       "host": "embodied-ai.sl.cloud9.ibm.com",
-//       "port": 10101,
-//       "type": "human",
-//       "role": "buyer"
-//    }
-// ],
-// "serviceInfo": [
-//    {
-//       "name": "utility-generator",
-//       "protocol": "http",
-//       "host": "embodied-ai.sl.cloud9.ibm.com",
-//       "port": 7021
-//    }
-// ]
 
 const app = express();
 
@@ -110,16 +88,22 @@ app.get('/sendOffer', (req, res) => {
   }
 });
 
+function checkMessage(msg) {
+  return msg.text && msg.text.length &&
+    msg.speaker && msg.speaker.length &&
+    (msg.role == 'buyer' || msg.role == 'seller');
+}
+
 app.post('/relayMessage', (req, res) => {
   logExpression("Inside relayMessage (POST).", 2);
   if(req.body) {
     let message = req.body;
-    logExpression("message: ", 3);
-    logExpression(message, 3);
+    logExpression("message: ", 2);
+    logExpression(message, 2);
     let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
     let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
     
-    if(allowMessage(message)) {
+    if(checkMessage(message) && allowMessage(message)) {
       queueMessage(message);
       updateTotals(message);
       let allResponses;
@@ -127,10 +111,7 @@ app.post('/relayMessage', (req, res) => {
       .then(humanResponses => {
         allResponses = humanResponses;
         logExpression("allResponses from human is: ", 2);
-        logExpression(allResponses);
-        //allResponses = allResponses.map(response => {return JSON.parse(response);});
-        //logExpression("Parsed allResponses from human is: ", 2);
-        //logExpression(allResponses);       
+        logExpression(allResponses);      
         if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
         return sendMessages(sendMessage, message, agentNegotiatorIDs);
       })
@@ -153,7 +134,7 @@ app.post('/relayMessage', (req, res) => {
     }
   }
   else {
-    res.status(500).send({"msg": "No message supplied."});
+    res.status(500).send({"msg": "No valid message supplied.", message});
   }
 });
 
