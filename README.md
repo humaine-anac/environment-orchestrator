@@ -11,7 +11,7 @@ cd anac-environment-orchestrator
 
 ```sh
 npm install
-node anac-environment-orchestrator -port 14010 -level 2 > eo001.log &
+node anac-environment-orchestrator.js -port 14010 -level 2 > eo001.log &
 ```
 
 Now you should have a running instance of the environment orchestrator.
