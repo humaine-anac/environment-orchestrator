@@ -37,7 +37,18 @@ that you can test (in this order):
 
 - To simulate a human speaking (GET route, for testing only): `<host>:14010/sendOffer?text=%22Hey%20Watson%20I%20will%20give%20you%204.75%20for%202%20eggs,%201%20cup%20of%20chocolate,%201%20packet%20of%20blueberries,%20and%208%20cups%20of%20milk.%20Also%203%20loaves%20of%20bread.%22`
 
-- To simulate a human speaking (POST route, which is how it should be called from chatUI or other services): `<host>:14010/receiveMessage` (needs appropriate POST body, to be detailed later).
+- To simulate a human speaking (POST route, which is how it should be called from chatUI or other services): `<host>:14010/receiveMessage`. Needs appropriate POST body; here is an example:
+- 
+```
+{
+  "speaker": "Human",
+  "addressee": "Celia",
+  "text": "Celia I'll buy 3 blueberries, 3 eggs, and 1 cup of flour for $7.98",
+  "role": "buyer",
+  "environmentUUID": "abcdefg",
+  "timestamp": 1581927654096
+}
+```
 
 - To view the queue of messages received by the environment orchestrator: `<host>:14010/viewQueue (GET)`
 
