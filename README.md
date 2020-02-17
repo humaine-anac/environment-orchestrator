@@ -7,14 +7,11 @@ How to install the Environment Orchestrator
 ```sh
 git clone git@us-south.git.cloud.ibm.com:anac-negotiation/anac-environment-orchestrator.git
 cd anac-environment-orchestrator
-cp cog.json.template cog.json
 ```
-
-Edit the `watcher` and `host` lines in the file cog.json to reflect the name of the host on which your code is installed.
 
 ```sh
 npm install
-crun load
+node anac-environment-orchestrator -port 14010 -level 2 > eo001.log &
 ```
 
 Now you should have a running instance of the environment orchestrator.
