@@ -261,7 +261,7 @@ app.post('/startRound', (req, res) => {
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
-    durations.round = 60; //HACK -- temporary!!
+    // durations.round = 60; //HACK -- temporary!!
     let proms = [];
     
     let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
@@ -466,8 +466,8 @@ function summarizeResults() {
         logExpression("Buyer!", 2);
         summary[agentName].cost = GLOB.totals[agentName].price;
         utilityInfo.bundle = {
-          price: JSON.parse(JSON.stringify(GLOB.totals[agentName])).price,
-          quantity: JSON.parse(JSON.stringify(GLOB.totals[agentName])).allocation || {}
+          cost: JSON.parse(JSON.stringify(GLOB.totals[agentName])).price,
+          products: JSON.parse(JSON.stringify(GLOB.totals[agentName])).allocation || {}
         };
       }
       logExpression("Just before proms.push, utilityInfo is: ", 2);
