@@ -242,7 +242,6 @@ app.post('/startRound', (req, res) => {
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
-    // durations.round = 60; //HACK -- temporary!!
     let proms = [];
     
     let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
@@ -296,6 +295,12 @@ app.post('/startRound', (req, res) => {
     })
     .then(agentResponses => {
       res.json(agentResponses);
+      let roundMetadata = {
+        roundNumber,
+        durations,
+        humanBudget: 100
+      };
+      sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
       wait(1000 * durations.warmUp)
       .then(() => {
         let startRoundMessage = {
@@ -346,13 +351,13 @@ http.createServer(app).listen(app.get('port'), () => {
 });
 
 function calculateUtility(agentRole, utilityBundle) {
-  logExpression("In calculateUtilityInfo, contacting negotiator of role " + agentRole + " with utility bundle: ", 2);
+  logExpression("In calculateUtility, contacting negotiator of role " + agentRole + " with utility bundle: ", 2);
   logExpression(utilityBundle, 2);
   return postDataToServiceType(utilityBundle, 'utility-generator', '/calculateUtility/' + agentRole);
 }
 
 function sendUtilityInfo(negotiatorID, utilityInfo) {
-  logExpression("In sendUtilityInformation, sending utility information: ", 2);
+  logExpression("In sendUtilityInfo, sending utility information: ", 2);
   logExpression(utilityInfo, 2);
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
@@ -389,6 +394,14 @@ function endRound(message, negotiatorID) {
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
   return postDataToServiceType(message, negotiatorID, '/endRound');
+}
+
+function sendRoundMetadata(message, negotiatorID) {
+  logExpression("In sendRoundMetadata, sending message: ", 2);
+  logExpression(message, 2);
+  logExpression("To the recipient: ", 2);
+  logExpression(negotiatorID, 2);
+  return postDataToServiceType(message, negotiatorID, '/sendRoundMetadata');
 }
 
 function totalRound(message, negotiatorID) {
