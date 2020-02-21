@@ -26,9 +26,15 @@ process.argv.forEach((val, index, array) => {
 
 setLogLevel(logLevel);
 
+let defaultHumanBudget = {
+  "currencyUnit": "USD",
+  "value": 100
+};
+
 let GLOB = {
   negotiatorsInfo: appSettings.negotiatorsInfo,
   serviceMap: appSettings.serviceMap,
+  humanBudget: appSettings.humanBudget || defaultHumanBudget,
   queue: [],
   totals: null
 };
@@ -298,7 +304,7 @@ app.post('/startRound', (req, res) => {
       let roundMetadata = {
         roundNumber,
         durations,
-        humanBudget: 100
+        humanBudget: GLOB.humanBudget
       };
       sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
       wait(1000 * durations.warmUp)
