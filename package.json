@@ -14,16 +14,16 @@
   },
   "author": "Jeff Kephart",
   "dependencies": {
-    "@cel/logger": "^1.0.0",
-    "express": "^4.0.0",
-    "method-override": "*",
+    "@cisl/zepto-logger": "^1.0.0",
     "body-parser": "*",
-    "uuid": "*",
     "dotenv": "^4.0.0",
+    "express": "^4.0.0",
     "lodash": "^4.17.11",
+    "method-override": "*",
     "prettier": "^1.16.1",
-    "xregexp": "^2.0",
     "request": "*",
-    "request-promise": "*"
+    "request-promise": "*",
+    "uuid": "*",
+    "xregexp": "^2.0"
   }
 }
