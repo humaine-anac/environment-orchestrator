@@ -94,12 +94,6 @@ app.get('/sendOffer', (req, res) => {
   }
 });
 
-function checkMessage(msg) {
-  return msg.text && msg.text.length &&
-    msg.speaker && msg.speaker.length &&
-    (msg.role == 'buyer' || msg.role == 'seller');
-}
-
 app.post('/relayMessage', (req, res) => {
   logExpression("Inside relayMessage (POST).", 2);
   if(req.body) {
@@ -152,42 +146,6 @@ app.get('/viewTotals', (req, res) => {
   res.json(GLOB.totals);
 });
 
-
-//TBD This function should take the queue into account.
-function allowMessage(message) {
-  return true;
-}
-
-function queueMessage(message) {
-  logExpression("In queueMessage, message is: ", 3);
-  logExpression(message, 3);
-  let msg = JSON.parse(JSON.stringify(message));
-  GLOB.queue.push({
-    msg,
-    timeStamp: new Date()
-  });
-  return;
-}
-
-// Test route for calculateUtility
-app.get('/calculateUtility/:agentType', (req, res) => {
-  let agentType = req.params.agentType;
-  let utilityBundle;
-  if(agentType == 'human') {
-    utilityBundle = require('./buyerUtilityBundle.json');
-  }
-  else {
-    utilityBundle = require('./sellerUtilityBundle.json');
-  }
-  return calculateUtility(agentType, utilityBundle)
-  .then(calculatedUtility => {
-    res.json(calculatedUtility);
-  })
-  .catch(error => {
-    res.status(500).send(error);
-  });
-});
-
 app.post('/calculateUtility/:agentName', (req, res) => {
   logExpression("In /calculateUtility (POST).", 2);
   logExpression(GLOB.negotiatorsInfo, 2);
@@ -227,6 +185,8 @@ app.post('/calculateUtility/:agentName', (req, res) => {
 });
 
 app.post('/receiveHumanAllocation', (req, res) => {
+  logExpression("Just called /receiveHumanAllocation with body: ", 2);
+  logExpression(req.body, 2);
   let msg = null;
   if(GLOB.totals.Human && req.body) {
     GLOB.totals.Human.allocation = req.body;
@@ -356,6 +316,29 @@ http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
 });
 
+
+//TBD This function should take the queue into account.
+function allowMessage(message) {
+  return true;
+}
+
+function checkMessage(msg) {
+  return msg.text && msg.text.length &&
+    msg.speaker && msg.speaker.length &&
+    (msg.role == 'buyer' || msg.role == 'seller');
+}
+
+function queueMessage(message) {
+  logExpression("In queueMessage, message is: ", 3);
+  logExpression(message, 3);
+  let msg = JSON.parse(JSON.stringify(message));
+  GLOB.queue.push({
+    msg,
+    timeStamp: new Date()
+  });
+  return;
+}
+
 function calculateUtility(agentRole, utilityBundle) {
   logExpression("In calculateUtility, contacting negotiator of role " + agentRole + " with utility bundle: ", 2);
   logExpression(utilityBundle, 2);
@@ -452,7 +435,7 @@ function summarizeResults() {
     logExpression(negotiatorInfo, 2);
     let agentName = negotiatorInfo.name;
     if(agentName == "chatUI" || agentName == "humanUI") agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
-    if(GLOB.totals[agentName]) {
+    if(GLOB.totals[agentName] && !summary[agentName]) { // Don't duplicate utility information for e.g. chatUI and humanUI, which both serve the same human
       summary[agentName] = {
         quantity: GLOB.totals[agentName].quantity
       };
@@ -687,3 +670,22 @@ function options2URL(options) {
 //    });
 //  }
 //}
+
+//// Test route for calculateUtility
+//app.get('/calculateUtility/:agentType', (req, res) => {
+//  let agentType = req.params.agentType;
+//  let utilityBundle;
+//  if(agentType == 'human') {
+//    utilityBundle = require('./buyerUtilityBundle.json');
+//  }
+//  else {
+//    utilityBundle = require('./sellerUtilityBundle.json');
+//  }
+//  return calculateUtility(agentType, utilityBundle)
+//  .then(calculatedUtility => {
+//    res.json(calculatedUtility);
+//  })
+//  .catch(error => {
+//    res.status(500).send(error);
+//  });
+//});
