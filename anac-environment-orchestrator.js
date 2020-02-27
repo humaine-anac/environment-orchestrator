@@ -6,7 +6,7 @@ const http = require('http');
 const express = require('express');
 const path = require('path');
 const uuidv1 = require('uuid/v1');
-const { logExpression, setLogLevel } = require('@cel/logger');
+const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
 let methodOverride = require('method-override');
 let bodyParser = require('body-parser');
@@ -102,7 +102,7 @@ app.post('/relayMessage', (req, res) => {
     logExpression(message, 2);
     let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
     let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
-    
+
     if(checkMessage(message) && allowMessage(message)) {
       queueMessage(message);
       updateTotals(message);
@@ -111,7 +111,7 @@ app.post('/relayMessage', (req, res) => {
       .then(humanResponses => {
         allResponses = humanResponses;
         logExpression("allResponses from human is: ", 2);
-        logExpression(allResponses);      
+        logExpression(allResponses);
         if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
         return sendMessages(sendMessage, message, agentNegotiatorIDs);
       })
@@ -164,7 +164,7 @@ app.post('/calculateUtility/:agentName', (req, res) => {
   }
   logExpression("utilityInfo: ", 2);
   logExpression(utilityInfo, 2);
-  
+
   if(req.body && utilityInfo) {
     utilityInfo.bundle = req.body;
     let agentType = negotiatorInfo.type;
@@ -209,7 +209,7 @@ app.post('/startRound', (req, res) => {
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
     let proms = [];
-    
+
     let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
     let negotiatorsInfo = JSON.parse(JSON.stringify(appSettings.negotiatorsInfo));
     let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
@@ -220,7 +220,7 @@ app.post('/startRound', (req, res) => {
       logExpression(negotiatorInfo, 2);
       return negotiatorInfo;
     });
-    
+
     roundInfo.agents.forEach(agentInfo => {
       serviceMap[agentInfo.name] = {
         "protocol": agentInfo.protocol || "http",
@@ -252,7 +252,7 @@ app.post('/startRound', (req, res) => {
       }
       proms.push(prom);
     });
-    
+
     Promise.all(proms)
     .then(values => {
       logExpression("Promise all results: ", 2);
@@ -539,9 +539,9 @@ function options2URL(options) {
 //  logExpression("Inside /startRound (GET).", 2);
 //
 //  let round = req.query.round || 0;
-//  
+//
 //  let environmentUUID = appSettings.environmentUUID || 'abcdefgh';
-//  
+//
 //  let negotiators = appSettings.negotiatorInfo;
 //  negotiators = negotiators.map(nBlock => {nBlock.environmentUUID = environmentUUID; return nBlock;});
 //  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
