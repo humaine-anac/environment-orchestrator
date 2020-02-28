@@ -1,17 +1,18 @@
-# anac-environment-orchestrator
-The ANAC environment orchestrator is a central component of the HUMAINE negotiation platform. It communicates with the negotiating agents, the human market administrator, and UIs associated with the human negotiator.
+# environment-orchestrator
+
+The environment orchestrator is a central component of the HUMAINE negotiation platform. It communicates with the negotiating agents, the human market administrator, and UIs associated with the human negotiator.
 
 How to install the Environment Orchestrator
 ----
 
 ```sh
-git clone git@us-south.git.cloud.ibm.com:anac-negotiation/anac-environment-orchestrator.git
-cd anac-environment-orchestrator
+git clone git@github.com:humaine-anac/environment-orchestrator.git
+cd environment-orchestrator
 ```
 
 ```sh
 npm install
-node anac-environment-orchestrator.js -port 14010 -level 2 > eo001.log &
+node environment-orchestrator.js -port 14010 -level 2 > eo001.log &
 ```
 
 Now you should have a running instance of the environment orchestrator.
@@ -19,7 +20,7 @@ Now you should have a running instance of the environment orchestrator.
 How to test the negotiation platform
 ----
 
-For a detailed account of how to test the negotiation platform, see the README file for the `anac-agent-jok` service.
+For a detailed account of how to test the negotiation platform, see the README file for the `agent-jok` service.
 
 
 APIs
@@ -29,9 +30,9 @@ APIs
 `/startRound (POST)`
 -----
 
-This API is called by a manager such as the chatUI or the anac-manager to cause the Environment Orchestrator to start a new round defined by the parameters in the POST body. Upon receiving this message, the EO sends utility information to each agent, along with the name the agent is to assume for that round and information about the round's duration and other timing parameters.
+This API is called by a manager such as the chat-ui or the anac-manager to cause the Environment Orchestrator to start a new round defined by the parameters in the POST body. Upon receiving this message, the EO sends utility information to each agent, along with the name the agent is to assume for that round and information about the round's duration and other timing parameters.
 
-Note that there is some delay between when you ask for a round to start and the actual start of the round; this delay is set in appSettings.json (roundWarmupDelay), or in the POST body for the /startRound message. So a bid will not be valid until the round actually starts. The default value is 5 seconds; we may want to set it to 30 seconds in the actual competition to give humans time to think about their negotiation strategy. 
+Note that there is some delay between when you ask for a round to start and the actual start of the round; this delay is set in appSettings.json (roundWarmupDelay), or in the POST body for the /startRound message. So a bid will not be valid until the round actually starts. The default value is 5 seconds; we may want to set it to 30 seconds in the actual competition to give humans time to think about their negotiation strategy.
 
 Here is an example POST body:
 
@@ -380,28 +381,28 @@ Example POST body:
               }
            },
            {
-    
+
            }
         ]
     }
 }
 ```
 
-Responds with either 
+Responds with either
 
 ```
 {
     "status": "Acknowledged"
 }
-``` 
+```
 
-or 
+or
 
 ```
 {
     "status": "Failed", "Reason": "No body supplied."
 }
-``` 
+```
 
 `/viewQueue (GET)`
 -----
@@ -534,3 +535,19 @@ Example response:
    }
 }
 ```
+
+## Contributing
+
+We are open to contributions.
+
+* The software is provided under the [MIT license](LICENSE). Contributions to
+this project are accepted under the same license.
+* Please also ensure that each commit in the series has at least one
+`Signed-off-by:` line, using your real name and email address. The names in
+the `Signed-off-by:` and `Author:` lines must match. If anyone else
+contributes to the commit, they must also add their own `Signed-off-by:`
+line. By adding this line the contributor certifies the contribution is made
+under the terms of the
+[Developer Certificate of Origin (DCO)](DeveloperCertificateOfOrigin.txt).
+* Questions, bug reports, et cetera are raised and discussed on the issues page.
+* Please make merge requests into the master branch.
