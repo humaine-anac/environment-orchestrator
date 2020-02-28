@@ -434,7 +434,7 @@ function summarizeResults() {
     logExpression("negotiatorInfo is: ", 2);
     logExpression(negotiatorInfo, 2);
     let agentName = negotiatorInfo.name;
-    if(agentName == "chatUI" || agentName == "humanUI") agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
+    if(agentName == "chat-ui" || agentName == "human-ui") agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
     if(GLOB.totals[agentName] && !summary[agentName]) { // Don't duplicate utility information for e.g. chatUI and humanUI, which both serve the same human
       summary[agentName] = {
         quantity: GLOB.totals[agentName].quantity
