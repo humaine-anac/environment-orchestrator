@@ -1,6 +1,10 @@
 {
    "defaultPort": "14010",
    "environmentUUID": "abcdefg",
+   "humanBudget": {
+      "currentUnit": "USD",
+      "value": 50
+   },
    "negotiatorsInfo": [
        {
           "name": "chat-ui",

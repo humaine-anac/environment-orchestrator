@@ -5,7 +5,8 @@ const appSettings = require('./appSettings.json');
 const http = require('http');
 const express = require('express');
 const path = require('path');
-const uuidv1 = require('uuid/v1');
+//const uuidv1 = require('uuid/v1');
+const {v1: uuidv1} = require('uuid');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
 let methodOverride = require('method-override');
@@ -68,8 +69,10 @@ app.get('/sendOffer', (req, res) => {
     };
 
     let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
-
-    if(allowMessage(message)) {
+    let permission = allowMessage(message);
+    logExpression("permission is: ", 2);
+    logExpression(permission, 2);
+    if(permission.permit) {
       queueMessage(message);
       return sendMessages(sendMessage, message, negotiatorIDs)
       .then(responses => {
@@ -85,7 +88,8 @@ app.get('/sendOffer', (req, res) => {
       });
     }
     else {
-      let sender = negotiators.filter(nBlock => {return nBlock.name == message.speaker;})[0].id;
+      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
+      message.rationale = permission.rationale;
       sendRejection(message, sender);
     }
   }
@@ -103,7 +107,10 @@ app.post('/relayMessage', (req, res) => {
     let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
     let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
 
-    if(checkMessage(message) && allowMessage(message)) {
+    let permission = allowMessage(message);
+    logExpression("permission is: ", 2);
+    logExpression(permission, 2);
+    if(checkMessage(message) && permission.permit) {
       queueMessage(message);
       updateTotals(message);
       let allResponses;
@@ -129,7 +136,12 @@ app.post('/relayMessage', (req, res) => {
       });
     }
     else {
-      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].id;
+      logExpression("Rejected message!", 2);
+      logExpression(GLOB.negotiatorsInfo, 2);
+      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
+      logExpression("sender is: ", 2);
+      logExpression(sender, 2);
+      message.rationale = permission.rationale;
       sendRejection(message, sender);
     }
   }
@@ -235,10 +247,9 @@ app.post('/startRound', (req, res) => {
     GLOB.negotiatorsInfo = negotiatorsInfo;
     GLOB.queue = [];
     GLOB.totals = {};
+    GLOB.humanBudget = JSON.parse(JSON.stringify(appSettings.humanBudget)) || defaultHumanBudget;
     let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
     let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
-    logExpression("serviceMap and negotiatorsInfo are now: ", 2);
-    logExpression(GLOB, 2);
 
     negotiatorsInfo.forEach(negotiatorInfo => {
       let utilityInfo = negotiatorInfo.utilityFunction;
@@ -319,7 +330,20 @@ http.createServer(app).listen(app.get('port'), () => {
 
 //TBD This function should take the queue into account.
 function allowMessage(message) {
-  return true;
+  let permit = true;
+  let rationale = null;
+  let messageType = getSafe(['bid', 'type'], message, null);
+  if (messageType == 'Accept') {
+    let bidAmount = getSafe(['bid', 'price', 'value'], message, 0.0);
+    logExpression("GLOB is: ", 2);
+    logExpression(GLOB, 2);
+    logExpression("In allowMessage, bidAmount is " + bidAmount + ", compared with human budget of " + GLOB.humanBudget.value, 2);
+    if(bidAmount > GLOB.humanBudget.value) {
+      permit = false;
+      rationale = "Insufficient budget";
+    }
+  } 
+  return {permit, rationale};
 }
 
 function checkMessage(msg) {
@@ -406,15 +430,17 @@ function updateTotals(message) {
   if(bidType == 'Accept') {
     // do stuff
     let agents = [message.speaker, message.addressee];
+    if(!GLOB.totals) GLOB.totals = {};
     agents.forEach(agent => {
-      if(!GLOB.totals) GLOB.totals = {};
       if(!GLOB.totals[agent]) {
         GLOB.totals[agent] = {
           price: 0.0,
           quantity:{}
         };
       }
-      GLOB.totals[agent].price += getSafe(['bid', 'price', 'value'], message, 0.0);
+      let bundlePrice =  getSafe(['bid', 'price', 'value'], message, 0.0);
+      if(agent == 'Human') GLOB.humanBudget.value -= bundlePrice;
+      GLOB.totals[agent].price += bundlePrice;
       Object.keys(message.bid.quantity).forEach(good => {
         if(!GLOB.totals[agent].quantity[good]) GLOB.totals[agent].quantity[good] = 0;
         GLOB.totals[agent].quantity[good] += getSafe(['bid', 'quantity', good], message, 0);
