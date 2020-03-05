@@ -40,6 +40,10 @@ let GLOB = {
   totals: null
 };
 
+let warmupTimer;
+let roundTimer;
+let postRoundTimer;
+
 const app = express();
 
 app.set('port', process.env.PORT || myPort);
@@ -53,7 +57,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 const getSafe = (p, o, d) =>
   p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
 
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+//const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function wait(ms) {
+  return new Promise(resolve => {
+    logExpression("Set timer!", 2);
+    return setTimeout(resolve, ms);
+  });
+}
 
 let environmentUUID = uuidv1();
 
@@ -217,6 +228,21 @@ app.post('/startRound', (req, res) => {
   if(req.body) {
     logExpression("Received body: ", 2);
     logExpression(req.body, 2);
+    logExpression(warmupTimer, 2);
+    if(warmupTimer) {
+      clearTimeout(warmupTimer);
+      logExpression("Just cleared warmupTimer.", 2);
+    }
+    logExpression(roundTimer, 2);
+    if(roundTimer) {
+      clearTimeout(roundTimer);
+      logExpression("Just cleared roundTimer.", 2);
+    }
+    logExpression(postRoundTimer, 2);
+    if(postRoundTimer) {
+      clearTimeout(postRoundTimer);
+      logExpression("Just cleared postRoundTimer.", 2);
+    }
     let roundInfo = req.body;
     let roundNumber = roundInfo.roundNumber;
     let durations = roundInfo.durations;
@@ -279,7 +305,10 @@ app.post('/startRound', (req, res) => {
       };
       sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
       wait(1000 * durations.warmUp)
-      .then(() => {
+      .then(timer => {
+        warmupTimer = timer;
+        logExpression("warmupTimer: ", 2);
+        logExpression(warmupTimer, 2);
         let startRoundMessage = {
           roundDuration: durations.round,
           roundNumber: roundNumber,
@@ -289,7 +318,8 @@ app.post('/startRound', (req, res) => {
       })
       .then(() => {
         wait(1000 * durations.round)
-        .then(() => {
+        .then(timer => {
+          roundTimer = timer;
           let endRoundMessage = {
             roundNumber: roundNumber,
             timestamp: new Date()
@@ -298,7 +328,8 @@ app.post('/startRound', (req, res) => {
         })
         .then(() => {
           wait(1000 * durations.post)
-          .then(() => {
+          .then(timer => {
+            postRoundTimer = timer;
             return summarizeResults()
             .then(roundTotals => {
               let roundTotalsMessage = {
