@@ -407,20 +407,17 @@ function allowMessage(message) {
       if (message.inReplyTo){
         if (message.inReplyTo.addressee && message.inReplyTo.addressee!=undefined){
           if (message.inReplyTo.addressee==message.speaker){
-
-            permit = true
-
-            d1 = new Date(message.inReplyTo.timeStamp)
-            d2 = new Date(message.timeStamp)
+            permit = true;
+            d1 = new Date(message.inReplyTo.timeStamp);
+            d2 = new Date(message.timeStamp);
             var diffInMillis = d2.getTime() - d1.getTime();
             if (diffInMillis>2000) {
-              permit = false
-              message.expired = true
+              permit = false;
+              message.expired = true;
             }
-
           }
           else {
-            permit = false
+            permit = false;
             turn = message.inReplyTo.turnID;
             for (i = (GLOB.queue.length-1); i>=0 ; i--) {
               if (GLOB.queue[i].msg.inReplyTo && GLOB.queue[i].msg.inReplyTo.turnID==turn){
@@ -433,53 +430,49 @@ function allowMessage(message) {
           }
         }
         else {
-          permit = true
+          permit = true;
         }
 
         if (permit) {
+          // tmpQueue = [];
+          permitedQueue = [];
+          qtMessagesinTurn = 0;
 
-            // tmpQueue = [];
-            permitedQueue = [];
-            qtMessagesinTurn = 0
+          turn = message.inReplyTo.turnID;
 
-            turn = message.inReplyTo.turnID;
-
-            for (i = 0; i<=(GLOB.queue.length-1) ; i++) {
-              if (GLOB.queue[i].msg.permit){
-                permitedQueue.push(GLOB.queue[i]);
-              }
+          for (i = 0; i<=(GLOB.queue.length-1) ; i++) {
+            if (GLOB.queue[i].msg.permit){
+              permitedQueue.push(GLOB.queue[i]);
             }
+          }
 
-            // for (i = (GLOB.queue.length-1); i>=0 ; i--) {
-            //   if ((GLOB.queue[i].msg.turnID==turn) || (GLOB.queue[i].msg.inReplyTo && GLOB.queue[i].msg.inReplyTo.turnID==turn)){
-            //     tmpQueue.push(GLOB.queue[i]);
-            //   }
-            // }
+          // for (i = (GLOB.queue.length-1); i>=0 ; i--) {
+          //   if ((GLOB.queue[i].msg.turnID==turn) || (GLOB.queue[i].msg.inReplyTo && GLOB.queue[i].msg.inReplyTo.turnID==turn)){
+          //     tmpQueue.push(GLOB.queue[i]);
+          //   }
+          // }
 
-            for (i = (permitedQueue.length-1); i>=0 ; i--) {
-              if ((permitedQueue[i].msg.turnID==turn) || (permitedQueue[i].msg.inReplyTo && permitedQueue[i].msg.inReplyTo.turnID==turn)){
-                // tmpQueue.push(GLOB.queue[i]);
-                qtMessagesinTurn++
-              }
+          for (i = (permitedQueue.length-1); i>=0 ; i--) {
+            if ((permitedQueue[i].msg.turnID==turn) || (permitedQueue[i].msg.inReplyTo && permitedQueue[i].msg.inReplyTo.turnID==turn)){
+              // tmpQueue.push(GLOB.queue[i]);
+              qtMessagesinTurn++;
             }
+          }
 
-            // if (tmpQueue.length==3){
-            if (qtMessagesinTurn==3){
+          // if (tmpQueue.length==3){
+          if (qtMessagesinTurn==3){
+            permit = false;
+          }
+          else {
+            if(permitedQueue.length>1 && permitedQueue[permitedQueue.length-1].msg.bot && permitedQueue[permitedQueue.length-2].msg.bot){
               permit = false;
             }
             else {
-              if(permitedQueue.length>1 && permitedQueue[permitedQueue.length-1].msg.bot && permitedQueue[permitedQueue.length-2].msg.bot){
-                permit = false;
-              }
-              else {
-                permit = true;
-              }
+              permit = true;
             }
-
+          }
         }
-
       }
-
     }
   }
 
@@ -487,8 +480,7 @@ function allowMessage(message) {
     currentTurnID++;
     message.turnID = currentTurnID;
   }
-  message.permit = permit
-
+  message.permit = permit;
   return {permit, rationale};
 }
 
@@ -506,9 +498,9 @@ function queueMessage(message) {
     msg,
     timeStamp: new Date()
   });
-  console.log("------CHECK QUEUE-----")
-  console.log(GLOB.queue);
-  console.log("----------------------")
+  logExpression("------CHECK QUEUE-----", 2);
+  logExpression(GLOB.queue, 2);
+  logExpression("----------------------", 2);
   return;
 }
 
