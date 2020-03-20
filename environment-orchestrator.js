@@ -5,12 +5,12 @@ const appSettings = require('./appSettings.json');
 const http = require('http');
 const express = require('express');
 const path = require('path');
-//const uuidv1 = require('uuid/v1');
 const {v1: uuidv1} = require('uuid');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
-let methodOverride = require('method-override');
-let bodyParser = require('body-parser');
+const methodOverride = require('method-override');
+const bodyParser = require('body-parser');
+const {allowMessage} = require('./enforce-rules');
 
 let myPort = appSettings.defaultPort || 14010;
 let logLevel = 1;
@@ -59,15 +59,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 const getSafe = (p, o, d) =>
   p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
 
-//const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-//function oldWait(ms) {
-//  return new Promise(resolve => {
-//    logExpression("Set timer!", 2);
-//    return setTimeout(resolve, ms);
-//  });
-//}
-
 function wait(ms) {
   let timeout, prom;
   prom = new Promise((resolve) => {
@@ -94,14 +85,12 @@ app.get('/sendOffer', (req, res) => {
     };
 
     let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
-    let permission = allowMessage(message);
+    let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
     logExpression("permission is: ", 2);
     logExpression(permission, 2);
-    //queue message permited or not
-    queueMessage(message);
 
     if(permission.permit) {
-      // queueMessage(message);
+      queueMessage(message); // Only queue message that has been permitted
       return sendMessages(sendMessage, message, negotiatorIDs)
       .then(responses => {
         let response = {
@@ -135,13 +124,12 @@ app.post('/relayMessage', (req, res) => {
     let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
     let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
 
-    let permission = allowMessage(message);
+    let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
     logExpression("permission is: ", 2);
     logExpression(permission, 2);
-    //queue message permited or not
-    queueMessage(message);
+
     if(checkMessage(message) && permission.permit) {
-      // queueMessage(message);
+      queueMessage(message); // Only queue message that has been permitted
       updateTotals(message);
       let allResponses;
       return sendMessages(sendMessage, message, humanNegotiatorIDs)
@@ -167,8 +155,11 @@ app.post('/relayMessage', (req, res) => {
     }
     else {
       logExpression("Rejected message!", 2);
+      logExpression(message, 2);
       logExpression(GLOB.negotiatorsInfo, 2);
-      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
+      let sender = GLOB.negotiatorsInfo.filter(nBlock => {
+        return ((nBlock.name == message.speaker) ||
+            (nBlock.name == "chat-ui" && message.speaker == "Human"));})[0].name;
       logExpression("sender is: ", 2);
       logExpression(sender, 2);
       message.rationale = permission.rationale;
@@ -378,111 +369,6 @@ http.createServer(app).listen(app.get('port'), () => {
   logExpression('Express server listening on port ' + app.get('port'), 2);
 });
 
-
-//TBD This function should take the queue into account.
-function allowMessage(message) {
-
-  let permit = true;
-  let rationale = null;
-  let messageType = getSafe(['bid', 'type'], message, null);
-  if (messageType == 'Accept') {
-    let bidAmount = getSafe(['bid', 'price', 'value'], message, 0.0);
-    logExpression("GLOB is: ", 2);
-    logExpression(GLOB, 2);
-    logExpression("In allowMessage, bidAmount is " + bidAmount + ", compared with human budget of " + GLOB.humanBudget.value, 2);
-    if(bidAmount > GLOB.humanBudget.value) {
-      permit = false;
-      rationale = "Insufficient budget";
-    }
-  }
-
-  if (permit){
-    //R1: If the speaker is not a agent(bot) it will be allowed.
-    if (!(message.bot)){
-      permit = true;
-    }
-    else{
-      //R2: When the message contains a direct address, if the message speaker is the mentioned agent,
-      //then the speaker will be allowed, otherwise the speaker will be blocked.
-      if (message.inReplyTo){
-        if (message.inReplyTo.addressee && message.inReplyTo.addressee!=undefined){
-          if (message.inReplyTo.addressee==message.speaker){
-            permit = true;
-            d1 = new Date(message.inReplyTo.timeStamp);
-            d2 = new Date(message.timeStamp);
-            var diffInMillis = d2.getTime() - d1.getTime();
-            if (diffInMillis>2000) {
-              permit = false;
-              message.expired = true;
-            }
-          }
-          else {
-            permit = false;
-            turn = message.inReplyTo.turnID;
-            for (i = (GLOB.queue.length-1); i>=0 ; i--) {
-              if (GLOB.queue[i].msg.inReplyTo && GLOB.queue[i].msg.inReplyTo.turnID==turn){
-                if((GLOB.queue[i].msg.speaker==GLOB.queue[i].msg.inReplyTo.addressee) && GLOB.queue[i].msg.expired){
-                  permit = true;
-                  break;
-                }
-              }
-            }
-          }
-        }
-        else {
-          permit = true;
-        }
-
-        if (permit) {
-          // tmpQueue = [];
-          permitedQueue = [];
-          qtMessagesinTurn = 0;
-
-          turn = message.inReplyTo.turnID;
-
-          for (i = 0; i<=(GLOB.queue.length-1) ; i++) {
-            if (GLOB.queue[i].msg.permit){
-              permitedQueue.push(GLOB.queue[i]);
-            }
-          }
-
-          // for (i = (GLOB.queue.length-1); i>=0 ; i--) {
-          //   if ((GLOB.queue[i].msg.turnID==turn) || (GLOB.queue[i].msg.inReplyTo && GLOB.queue[i].msg.inReplyTo.turnID==turn)){
-          //     tmpQueue.push(GLOB.queue[i]);
-          //   }
-          // }
-
-          for (i = (permitedQueue.length-1); i>=0 ; i--) {
-            if ((permitedQueue[i].msg.turnID==turn) || (permitedQueue[i].msg.inReplyTo && permitedQueue[i].msg.inReplyTo.turnID==turn)){
-              // tmpQueue.push(GLOB.queue[i]);
-              qtMessagesinTurn++;
-            }
-          }
-
-          // if (tmpQueue.length==3){
-          if (qtMessagesinTurn==3){
-            permit = false;
-          }
-          else {
-            if(permitedQueue.length>1 && permitedQueue[permitedQueue.length-1].msg.bot && permitedQueue[permitedQueue.length-2].msg.bot){
-              permit = false;
-            }
-            else {
-              permit = true;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if(permit){
-    currentTurnID++;
-    message.turnID = currentTurnID;
-  }
-  message.permit = permit;
-  return {permit, rationale};
-}
 
 function checkMessage(msg) {
   return msg.text && msg.text.length &&
