@@ -21,6 +21,7 @@ function rule0Evaluation(message, queue) {
    logExpression("In rule0 with message and queue: ", 2);
    logExpression(message, 2);
    logExpression(queue, 2);
+
    let permit = true;
    let rationale = null;
    let messageSpeaker = getSafe(['speaker'], message, null);
@@ -32,6 +33,9 @@ function rule0Evaluation(message, queue) {
       if(hQueue && hQueue.length) {
          let lastHumanUtteranceTime = hQueue[hQueue.length-1].timeStamp;
          let now = new Date();
+         if (message.now){
+           now = new Date(message.now)
+         }
          let tDiff = now.getTime() - lastHumanUtteranceTime.getTime();
          logExpression("tDiff = " + tDiff, 2);
          if(tDiff < 5000) {
@@ -46,6 +50,10 @@ function rule0Evaluation(message, queue) {
 }
 
 function rule1Evaluation(message, humanBudget) {
+
+  logExpression("In rule1 with message: ", 2);
+  logExpression(message, 2);
+
    let permit = true;
    let rationale = null;
    let messageType = getSafe(['bid', 'type'], message, null);
@@ -57,21 +65,143 @@ function rule1Evaluation(message, humanBudget) {
          rationale = "Insufficient budget";
       }
    }
+   logExpression("Returning from rule1 with evaluation: ", 2);
+   logExpression({permit, rationale}, 2);
    return {permit, rationale};
 }
 
 //TBD
 function rule2Evaluation(message, queue) {
-   let permit = true;
-   let rationale = null;
+
+  //R2: If an agent is addressed, it has the first right to respond.
+  //It must do so within two seconds;
+  //otherwise the unaddressed agent will be granted the right to respond and
+  //the addressed agent will be prohibited from responding until the next human utterance.
+
+  logExpression("In rule2 with message and queue: ", 2);
+  logExpression(message, 2);
+  logExpression(queue, 2);
+
+  let permit = true;
+  let rationale = null;
+  let lastHumanUtterance = {};
+
+  if(queue && queue.length) {
+     let hQueue = queue.filter(mBlock => {
+       return mBlock.msg.speaker == "Human";
+     });
+     if(hQueue && hQueue.length) {
+       lastHumanUtterance = hQueue[hQueue.length-1];
+     }
+  }
+
+  if (isSpeakerBot(message)){
+
+    if (lastHumanUtterance.msg.addressee && lastHumanUtterance.msg.addressee!=undefined) {
+
+      let now = new Date();
+      if (message.now){
+        now = new Date(message.now)
+      }
+      lastHumanUtteranceTime = new Date(lastHumanUtterance.timeStamp);
+      let tDiff = now.getTime() - lastHumanUtteranceTime.getTime();
+      logExpression("tDiff = " + tDiff, 2);
+      logExpression("lastHumanUtterance.msg.addressee " + lastHumanUtterance.msg.addressee, 2);
+      logExpression("message.speaker " + message.speaker, 2);
+
+      if (lastHumanUtterance.msg.addressee!=message.speaker && tDiff>2000){
+        logExpression("case 1", 2);
+
+        permit = true;
+        rationale = null;
+
+      }
+      else
+      if (lastHumanUtterance.msg.addressee!=message.speaker && tDiff<=2000){
+
+        logExpression("case 2", 2);
+
+        permit = false;
+        rationale = "Premature response from unaddressed agent";
+
+      }
+      else
+      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff>2000){
+
+        logExpression("case 3", 2);
+
+        permit = false;
+        rationale = "Addressee message delayed";
+
+      }
+      else
+      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff<=2000){
+
+        logExpression("case 4", 2);
+
+        permit = true;
+        rationale = null;
+
+      }
+
+     }
+
+   }
+   logExpression("Returning from rule2 with evaluation: ", 2);
+   logExpression({permit, rationale}, 2);
    return {permit, rationale};
 }
 
 //TBD
 function rule3Evaluation(message, queue) {
-   let permit = true;
-   let rationale = null;
-   return {permit, rationale};
+
+  //R3: Each agent may speak at most once after the most recent human utterance.
+  //For example, the sequence [H, A1, A2, H, A2, A1] is valid,
+  //but the sequence [H, A1, A2, A1] is not because A1 has spoken twice after the most recent human utterance.
+  //If both agents reply at the same time, or in other words,
+  //if the difference between the timestamps upon reception of the messages is within milliseconds,
+  //the first response is granted, while the second is blocked.
+  //The agent that had its message blocked can still reply to the human and
+  //it could take into account the message of the other agent that has been allowed.
+
+  logExpression("In rule3 with message and queue: ", 2);
+  logExpression(message, 2);
+  logExpression(queue, 2);
+
+  let permit = true;
+  let rationale = null;
+  let lastHumanUtterance = {};
+
+  if (isSpeakerBot(message)){
+
+    if(queue && queue.length) {
+
+      var n = queue.length;
+      qt_msg_turn = 0;
+
+      while (isSpeakerBot(queue[n-1].msg)) {
+        qt_msg_turn++
+        n--
+      }
+
+      if (qt_msg_turn==2) {
+        permit = false;
+        rationale = "Quantity of agents messages exceeded"
+      }
+      else {
+        let lastMemberUtterance = queue[queue.length-1];
+        if (lastMemberUtterance.msg.speaker==message.speaker){
+          permit = false;
+          rationale = "Agent speaking twice"
+        }
+      }
+    }
+  }
+
+  logExpression("Returning from rule3 with evaluation: ", 2);
+  logExpression({permit, rationale}, 2);
+
+  return {permit, rationale};
 }
 
 function rule4Evaluation(message) {
@@ -83,6 +213,8 @@ function rule4Evaluation(message) {
       permit = false;
       rationale = "Excessive message length";
    }
+   logExpression("Returning from rule4 with evaluation: ", 2);
+   logExpression({permit, rationale}, 2);
    return {permit, rationale};
 }
 
@@ -92,16 +224,13 @@ function allowMessage(message, humanBudget, queue) {
   let permit = true;
   let rationale = null;
 
-  logExpression("queue is: ", 2);
-  logExpression(queue, 2);
-  
   let rules = [];
   rules[0] = rule0Evaluation(message, queue);
   rules[1] = rule1Evaluation(message, humanBudget);
   rules[2] = rule2Evaluation(message, queue);
   rules[3] = rule3Evaluation(message, queue);
   rules[4] = rule4Evaluation(message);
-  
+
   rules.forEach(rule => {
    permit = permit && rule.permit;
    if(!rule.permit) {
@@ -112,7 +241,7 @@ function allowMessage(message, humanBudget, queue) {
       rationale += rule.rationale;
    }
   });
-  
+
 /*
   if (permit){
     //R1: If the speaker is not a agent(bot) it will be allowed.
