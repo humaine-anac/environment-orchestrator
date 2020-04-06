@@ -10,21 +10,17 @@ const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
 const methodOverride = require('method-override');
 const bodyParser = require('body-parser');
+const argv = require('minimist')(process.argv.slice(2));
+
 const {allowMessage} = require('./enforce-rules');
 
-let myPort = appSettings.defaultPort || 14010;
+let myPort = argv.port || appSettings.defaultPort || 14010;
 let logLevel = 1;
 
-process.argv.forEach((val, index, array) => {
-  if (val === '-port') {
-    myPort = array[index + 1];
-  }
-  if (val === '-level') {
-    logLevel = array[index + 1];
-    logExpression('Setting log level to ' + logLevel, 1);
-  }
-});
-
+if (argv.level) {
+  logLevel = argv.level;
+  logExpression(`Setting log level to ${logLevel}`);
+}
 setLogLevel(logLevel);
 
 let defaultHumanBudget = {
