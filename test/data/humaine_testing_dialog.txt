@@ -1,0 +1,24 @@
+11:47:01:0000;H;@A1, I would like to buy 2 eggs.;accepted
+11:47:01:0005;A1;I can give you 2 eggs for 5 dollars.;accepted
+11:47:02:0016;A2;I can give you 2 eggs for 4.5 dollars.;blocked
+11:47:06:0000;H;@A2, I also would like to buy milk.;accepted
+11:47:06:0007;A2;I can give you 2 eggs for 3 dollars.;accepted
+11:47:08:0008;A1;I can give you a cup of milk for 2 dollars. Therefore, the total for 2 eggs and a cup of milk would be 7 dollars.;accepted
+11:47:13:0000;H;@A1, actually I would like to buy 2 eggs.;accepted
+11:47:13:0001;A1;I can give you 2 eggs for 5 dollars.;accepted
+11:47:13:0002;A2;I can give you 2 eggs for 5.50 dollars.;blocked
+11:47:13:0042;A2;I can give you 2 eggs for 4.50 dollars.;blocked
+11:47:14:0001;A1;I can give you 2 eggs for 4 dollars.;blocked
+11:47:19:0002;H;@A2, I also would like to buy milk.;accepted
+11:47:19:0004;A2;I can give you 2 eggs for 3 dollars.;accepted
+11:47:19:0005;A1;I can give you a cup of milk for 2 dollars. Therefore, the total for 2 eggs and a cup of milk would be 7 dollars.;blocked
+11:47:21:0045;A1;I can give you a cup of milk for 2 dollars. Therefore, the total for 2 eggs and a cup of milk would be 3 dollars.;accepted
+11:47:26:0045;H;@A1, I would like to buy 3 eggs.;accepted
+11:47:26:0046;A2;I can give you 2 eggs for 4.5 dollars.;blocked
+11:47:26:0047;A1;I can give you 2 eggs for 4 dollars.;accepted
+11:47:31:0050;H;I would like to buy 2 eggs.;accepted
+11:47:31:0051;A2;I can give you 2 eggs for 4.5 dollars.;accepted
+11:47:31:0052;A1;I can give you 2 eggs for 5 dollars.;blocked
+11:47:32:0030;A1;I can give you 2 eggs for 4 dollars.;accepted
+11:47:37:0031;H;I would like to buy 2 eggs.;accepted
+11:47:37:0038;A1;I can give you a good price on 2 eggs, but first I think you might like to hear a few verses of Jabberwocky by Lewis Carroll, which is my favorite poem: “’Twas brillig, and the slithy toves Did gyre and gimble in the wabe: All mimsy were the borogoves And the mome raths outgrabe. ‘Beware the Jabberwock, my son! The jaws that bite, the claws that catch! Beware the Jubjub bird, and shun The frumious Bandersnatch!” He took his vorpal sword in hand. Long time the manxome foe he sought— So rested he by the Tumtum tree And stood awhile in thought. And, as in uffish thought he stood The Jabberwock, with eyes of flame, Came whiffling…” Oh wait, where was I? Oh yes -- I can give you 2 eggs for 4.50 dollars.;blocked
