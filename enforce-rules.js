@@ -97,7 +97,8 @@ function rule2Evaluation(message, queue) {
 
   if (isSpeakerBot(message)){
 
-    if (lastHumanUtterance.msg.addressee && lastHumanUtterance.msg.addressee!=undefined) {
+    if (lastHumanUtterance.msg.addressee &&
+      (lastHumanUtterance.msg.addressee!=undefined && lastHumanUtterance.msg.addressee!="")) {
 
       let now = new Date();
       if (message.now){
@@ -143,6 +144,31 @@ function rule2Evaluation(message, queue) {
         rationale = null;
 
       }
+
+     }
+     else {
+
+       let lastMemberUtterance = queue[queue.length-1];
+
+       if (isSpeakerBot(lastMemberUtterance.msg)){
+
+         let now = new Date();
+         if (message.now){
+           now = new Date(message.now)
+         }
+         lastMemberUtteranceTime = new Date(lastMemberUtterance.timeStamp);
+         let tDiff = now.getTime() - lastMemberUtteranceTime.getTime();
+         logExpression("case 5", 2);
+         logExpression("now = " + now.getTime(), 2);
+         logExpression("lastMemberUtteranceTime = " + lastMemberUtteranceTime.getTime(), 2);
+         logExpression("tDiff = " + tDiff, 2);
+
+         if (tDiff<30){
+           permit = false;
+           rationale = "Agents speaking at same time";
+         }
+
+       }
 
      }
 
