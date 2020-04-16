@@ -8,8 +8,6 @@ const path = require('path');
 const {v1: uuidv1} = require('uuid');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
-const methodOverride = require('method-override');
-const bodyParser = require('body-parser');
 const argv = require('minimist')(process.argv.slice(2));
 
 const {allowMessage} = require('./enforce-rules');
@@ -46,13 +44,13 @@ let currentTurnID;
 const app = express();
 
 app.set('port', process.env.PORT || myPort);
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
-app.use(methodOverride());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+app.use((req, _, next) => {
+  logExpression(`Inside ${req.url} (${req.method}).`, 2);
+  next();
+})
 
 function wait(ms) {
   let timeout, prom;
@@ -69,117 +67,112 @@ function wait(ms) {
 let environmentUUID = uuidv1();
 
 app.get('/sendOffer', (req, res) => {
-  logExpression("Inside sendOffer (GET).", 2);
-  if(req.query.text) {
-    let message = {
-      text: req.query.text,
-      speaker: req.query.speaker || 'Human',
-      addressee: req.query.addressee || null,
-      role: req.query.role || 'buyer',
-      environmentUUID: environmentUUID || null
-    };
+  if (!req.query.text) {
+    return res.send(500, {"msg": "No text supplied."});
+  }
 
-    let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
-    let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
-    logExpression("permission is: ", 2);
-    logExpression(permission, 2);
+  let message = {
+    text: req.query.text,
+    speaker: req.query.speaker || 'Human',
+    addressee: req.query.addressee || null,
+    role: req.query.role || 'buyer',
+    environmentUUID: environmentUUID || null
+  };
 
-    if(permission.permit) {
-      queueMessage(message); // Only queue message that has been permitted
-      return sendMessages(sendMessage, message, negotiatorIDs)
-      .then(responses => {
-        let response = {
-          "status": "Acknowledged",
-          responses
-        };
+  let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
+  let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
+  logExpression("permission is: ", 2);
+  logExpression(permission, 2);
 
-        res.json(response);
-      })
-      .catch(err => {
-        res.send(500, err);
-      });
-    }
-    else {
-      let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
-      message.rationale = permission.rationale;
-      sendRejection(message, sender);
-    }
+  if(permission.permit) {
+    queueMessage(message); // Only queue message that has been permitted
+    return sendMessages(sendMessage, message, negotiatorIDs)
+    .then(responses => {
+      let response = {
+        "status": "Acknowledged",
+        responses
+      };
+
+      res.json(response);
+    })
+    .catch(err => {
+      res.send(500, err);
+    });
   }
   else {
-    res.send(500, {"msg": "No text supplied."});
+    let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
+    message.rationale = permission.rationale;
+    sendRejection(message, sender);
   }
 });
 
 app.post('/relayMessage', (req, res) => {
-  logExpression("Inside relayMessage (POST).", 2);
-  if(req.body) {
-    let message = req.body;
-    logExpression("message: ", 2);
-    logExpression(message, 2);
-    let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
-    let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
+  if(!req.body) {
+    return res.status(500).send({"msg": "No valid message supplied.", message});
+  }
 
-    let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
-    logExpression("permission is: ", 2);
-    logExpression(permission, 2);
+  let message = req.body;
+  logExpression("message: ", 2);
+  logExpression(message, 2);
+  let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
+  let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
 
-    if(checkMessage(message) && permission.permit) {
-      queueMessage(message); // Only queue message that has been permitted
-      updateTotals(message);
-      let allResponses;
-      return sendMessages(sendMessage, message, humanNegotiatorIDs)
-      .then(humanResponses => {
-        allResponses = humanResponses;
-        logExpression("allResponses from human is: ", 2);
-        logExpression(allResponses);
-        if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
-        return sendMessages(sendMessage, message, agentNegotiatorIDs);
-      })
-      .then(agentResponses => {
-        allResponses = allResponses.concat(agentResponses);
-        let response = {
-          "status": "Acknowledged",
-          allResponses
-        };
+  let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
+  logExpression("permission is: ", 2);
+  logExpression(permission, 2);
 
-        res.json(response);
-      })
-      .catch(err => {
-        res.status(500).send(err);
-      });
-    }
-    else {
-      logExpression("Rejected message!", 2);
-      logExpression(message, 2);
-      logExpression(GLOB.negotiatorsInfo, 2);
-      let sender = GLOB.negotiatorsInfo.filter(nBlock => {
-        return ((nBlock.name == message.speaker) ||
-            (nBlock.name == "chat-ui" && message.speaker == "Human"));})[0].name;
-      logExpression("sender is: ", 2);
-      logExpression(sender, 2);
-      message.rationale = permission.rationale;
-      sendRejection(message, sender);
-    }
+  if(checkMessage(message) && permission.permit) {
+    queueMessage(message); // Only queue message that has been permitted
+    updateTotals(message);
+    let allResponses;
+    return sendMessages(sendMessage, message, humanNegotiatorIDs)
+    .then(humanResponses => {
+      allResponses = humanResponses;
+      logExpression("allResponses from human is: ", 2);
+      logExpression(allResponses);
+      if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
+      return sendMessages(sendMessage, message, agentNegotiatorIDs);
+    })
+    .then(agentResponses => {
+      allResponses = allResponses.concat(agentResponses);
+      let response = {
+        "status": "Acknowledged",
+        allResponses
+      };
+
+      res.json(response);
+    })
+    .catch(err => {
+      res.status(500).send(err);
+    });
   }
   else {
-    res.status(500).send({"msg": "No valid message supplied.", message});
+    logExpression("Rejected message!", 2);
+    logExpression(message, 2);
+    logExpression(GLOB.negotiatorsInfo, 2);
+    let sender = GLOB.negotiatorsInfo.filter(nBlock => {
+      return ((nBlock.name == message.speaker) ||
+          (nBlock.name == "chat-ui" && message.speaker == "Human"));})[0].name;
+    logExpression("sender is: ", 2);
+    logExpression(sender, 2);
+    message.rationale = permission.rationale;
+    sendRejection(message, sender);
   }
 });
 
 app.get('/viewQueue', (req, res) => {
-  res.json(GLOB.queue);
+  return res.json(GLOB.queue);
 });
 
 app.get('/viewTotals', (req, res) => {
-  res.json(GLOB.totals);
+  return res.json(GLOB.totals);
 });
 
 app.post('/calculateUtility/:agentName', (req, res) => {
-  logExpression("In /calculateUtility (POST).", 2);
   logExpression(GLOB.negotiatorsInfo, 2);
   let agentName = req.params.agentName;
   let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
-  logExpression("In /calculateUtility (POST), negotiatorsInfo is: ", 2);
+  logExpression("negotiatorsInfo is: ", 2);
   logExpression(negotiatorsInfo, 2);
 
   let negotiatorInfo = null;
@@ -193,27 +186,25 @@ app.post('/calculateUtility/:agentName', (req, res) => {
   logExpression("utilityInfo: ", 2);
   logExpression(utilityInfo, 2);
 
-  if(req.body && utilityInfo) {
-    utilityInfo.bundle = req.body;
-    let agentType = negotiatorInfo.type;
-    logExpression("utilityInfo: ", 2);
-    logExpression(utilityInfo, 2);
-    return calculateUtility(agentType, utilityInfo)
-    .then(calculatedUtility => {
-      res.json(calculatedUtility);
-    })
-    .catch(error => {
-      res.status(500).send(error);
-    });
+  if(!req.body || !utilityInfo) {
+    return res.status(500).send({"msg": "No POST body supplied, or else no negotiators."});
   }
-  else {
-    let error = {"msg": "No POST body supplied, or else no negotiators."};
+
+  utilityInfo.bundle = req.body;
+  let agentType = negotiatorInfo.type;
+  logExpression("utilityInfo: ", 2);
+  logExpression(utilityInfo, 2);
+  return calculateUtility(agentType, utilityInfo)
+  .then(calculatedUtility => {
+    res.json(calculatedUtility);
+  })
+  .catch(error => {
     res.status(500).send(error);
-  }
+  });
 });
 
 app.post('/receiveHumanAllocation', (req, res) => {
-  logExpression("Just called /receiveHumanAllocation with body: ", 2);
+  logExpression("Received body: ", 2);
   logExpression(req.body, 2);
   let msg = null;
   if(GLOB.totals.Human && req.body) {
@@ -228,136 +219,133 @@ app.post('/receiveHumanAllocation', (req, res) => {
 });
 
 app.post('/startRound', (req, res) => {
-  logExpression("Inside /startRound (POST).", 2);
+  if(!req.body) {
+    return res.json({"msg": "No POST body provided."});
+  }
 
-  if(req.body) {
-    logExpression("Received body: ", 2);
-    logExpression(req.body, 2);
+  logExpression("Received body: ", 2);
+  logExpression(req.body, 2);
 
-    if(warmUpTimer) {
-      warmUpTimer.cancel();
-      logExpression("Just cleared warmupTimer.", 2);
+  if(warmUpTimer) {
+    warmUpTimer.cancel();
+    logExpression("Just cleared warmupTimer.", 2);
+  }
+
+  if(roundTimer) {
+    roundTimer.cancel();
+    logExpression("Just cleared roundTimer.", 2);
+  }
+
+  if(postRoundTimer) {
+    postRoundTimer.cancel();
+    logExpression("Just cleared postRoundTimer.", 2);
+  }
+
+  let roundInfo = req.body;
+  let roundNumber = roundInfo.roundNumber;
+  let durations = roundInfo.durations;
+  //ravel
+  currentTurnID = 0;
+  let proms = [];
+
+  let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
+  let negotiatorsInfo = JSON.parse(JSON.stringify(appSettings.negotiatorsInfo));
+  let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
+  negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
+    logExpression("Filling in human Info.", 2);
+    logExpression(negotiatorInfo, 2);
+    if(negotiatorInfo.type == 'human') negotiatorInfo.utilityFunction = humanUtility;
+    logExpression(negotiatorInfo, 2);
+    return negotiatorInfo;
+  });
+
+  roundInfo.agents.forEach(agentInfo => {
+    serviceMap[agentInfo.name] = {
+      "protocol": agentInfo.protocol || "http",
+      "host": agentInfo.host,
+      "port": agentInfo.port
+    };
+    agentInfo.type = 'agent';
+    agentInfo.role = 'seller';
+    negotiatorsInfo.push(agentInfo);
+  });
+  GLOB.serviceMap = serviceMap;
+  GLOB.negotiatorsInfo = negotiatorsInfo;
+  GLOB.queue = [];
+  GLOB.totals = {};
+  GLOB.humanBudget = JSON.parse(JSON.stringify(appSettings.humanBudget)) || defaultHumanBudget;
+  let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
+  let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
+
+  negotiatorsInfo.forEach(negotiatorInfo => {
+    let utilityInfo = negotiatorInfo.utilityFunction;
+    let prom;
+    if(utilityInfo) {
+      utilityInfo.name = getSafe(['name'], negotiatorInfo, null);
+      logExpression(utilityInfo, 2);
+      prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
+    } else {
+      prom = Promise.resolve(null);
     }
+    proms.push(prom);
+  });
 
-    if(roundTimer) {
-      roundTimer.cancel();
-      logExpression("Just cleared roundTimer.", 2);
-    }
-
-    if(postRoundTimer) {
-      postRoundTimer.cancel();
-      logExpression("Just cleared postRoundTimer.", 2);
-    }
-
-    let roundInfo = req.body;
-    let roundNumber = roundInfo.roundNumber;
-    let durations = roundInfo.durations;
-    //ravel
-    currentTurnID = 0;
-    let proms = [];
-
-    let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
-    let negotiatorsInfo = JSON.parse(JSON.stringify(appSettings.negotiatorsInfo));
-    let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
-    negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
-      logExpression("Filling in human Info.", 2);
-      logExpression(negotiatorInfo, 2);
-      if(negotiatorInfo.type == 'human') negotiatorInfo.utilityFunction = humanUtility;
-      logExpression(negotiatorInfo, 2);
-      return negotiatorInfo;
-    });
-
-    roundInfo.agents.forEach(agentInfo => {
-      serviceMap[agentInfo.name] = {
-        "protocol": agentInfo.protocol || "http",
-        "host": agentInfo.host,
-        "port": agentInfo.port
+  Promise.all(proms)
+  .then(values => {
+    logExpression("Promise all results: ", 2);
+    logExpression(values, 2);
+    return values;
+  })
+  .then(agentResponses => {
+    res.json(agentResponses);
+    let roundMetadata = {
+      roundNumber,
+      durations,
+      humanBudget: GLOB.humanBudget
+    };
+    sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
+    warmUpTimer = wait(1000 * durations.warmUp);
+    warmUpTimer.promise.then(() => {
+      logExpression("warmUpTimer has expired.", 2);
+      let startRoundMessage = {
+        roundDuration: durations.round,
+        roundNumber: roundNumber,
+        timestamp: new Date()
       };
-      agentInfo.type = 'agent';
-      agentInfo.role = 'seller';
-      negotiatorsInfo.push(agentInfo);
-    });
-    GLOB.serviceMap = serviceMap;
-    GLOB.negotiatorsInfo = negotiatorsInfo;
-    GLOB.queue = [];
-    GLOB.totals = {};
-    GLOB.humanBudget = JSON.parse(JSON.stringify(appSettings.humanBudget)) || defaultHumanBudget;
-    let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
-    let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
-
-    negotiatorsInfo.forEach(negotiatorInfo => {
-      let utilityInfo = negotiatorInfo.utilityFunction;
-      let prom;
-      if(utilityInfo) {
-        utilityInfo.name = getSafe(['name'], negotiatorInfo, null);
-        logExpression(utilityInfo, 2);
-        prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
-      } else {
-        prom = Promise.resolve(null);
-      }
-      proms.push(prom);
-    });
-
-    Promise.all(proms)
-    .then(values => {
-      logExpression("Promise all results: ", 2);
-      logExpression(values, 2);
-      return values;
+      sendMessages(startRound, startRoundMessage, negotiatorIDs);
     })
-    .then(agentResponses => {
-      res.json(agentResponses);
-      let roundMetadata = {
-        roundNumber,
-        durations,
-        humanBudget: GLOB.humanBudget
-      };
-      sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
-      warmUpTimer = wait(1000 * durations.warmUp);
-      warmUpTimer.promise.then(() => {
-        logExpression("warmUpTimer has expired.", 2);
-        let startRoundMessage = {
-          roundDuration: durations.round,
+    .then(() => {
+      roundTimer = wait(1000 * durations.round);
+      roundTimer.promise.then(() => {
+        logExpression("roundTimer has expired.", 2);
+        let endRoundMessage = {
           roundNumber: roundNumber,
           timestamp: new Date()
         };
-        sendMessages(startRound, startRoundMessage, negotiatorIDs);
+        sendMessages(endRound, endRoundMessage, negotiatorIDs);
       })
       .then(() => {
-        roundTimer = wait(1000 * durations.round);
-        roundTimer.promise.then(() => {
-          logExpression("roundTimer has expired.", 2);
-          let endRoundMessage = {
-            roundNumber: roundNumber,
-            timestamp: new Date()
-          };
-          sendMessages(endRound, endRoundMessage, negotiatorIDs);
-        })
-        .then(() => {
-          postRoundTimer = wait(1000 * durations.post);
-          postRoundTimer.promise.then(() => {
-            logExpression("postRoundTimer has expired.", 2);
-            return summarizeResults()
-            .then(roundTotals => {
-              let roundTotalsMessage = {
-                roundNumber,
-                roundTotals
-              };
-              logExpression("I am sending this results message to the human negotiator IDs: ", 2);
-              logExpression(roundTotalsMessage, 2);
-              logExpression(humanNegotiatorIDs, 2);
-              sendMessages(totalRound, roundTotalsMessage, humanNegotiatorIDs);
-            });
+        postRoundTimer = wait(1000 * durations.post);
+        postRoundTimer.promise.then(() => {
+          logExpression("postRoundTimer has expired.", 2);
+          return summarizeResults()
+          .then(roundTotals => {
+            let roundTotalsMessage = {
+              roundNumber,
+              roundTotals
+            };
+            logExpression("I am sending this results message to the human negotiator IDs: ", 2);
+            logExpression(roundTotalsMessage, 2);
+            logExpression(humanNegotiatorIDs, 2);
+            sendMessages(totalRound, roundTotalsMessage, humanNegotiatorIDs);
           });
         });
       });
-    })
-    .catch(err => {
-      res.json(err);
     });
-  }
-  else {
-    res.json({"msg": "No POST body provided."});
-  }
+  })
+  .catch(err => {
+    res.json(err);
+  });
 });
 
 http.createServer(app).listen(app.get('port'), () => {
