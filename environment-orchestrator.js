@@ -13,6 +13,7 @@ const bodyParser = require('body-parser');
 const argv = require('minimist')(process.argv.slice(2));
 
 const {allowMessage} = require('./enforce-rules');
+const {getSafe} = require('./utils');
 
 let myPort = argv.port || appSettings.defaultPort || 14010;
 let logLevel = 1;
@@ -52,8 +53,6 @@ app.set('view engine', 'pug');
 app.use(methodOverride());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const getSafe = (p, o, d) =>
-  p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
 
 function wait(ms) {
   let timeout, prom;
