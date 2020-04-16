@@ -71,7 +71,7 @@ app.get('/sendOffer', (req, res) => {
     return res.send(500, {"msg": "No text supplied."});
   }
 
-let message = {
+  let message = {
     text: req.query.text,
     speaker: req.query.speaker || 'Human',
     addressee: req.query.addressee || null,
