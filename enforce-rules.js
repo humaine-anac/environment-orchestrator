@@ -1,20 +1,14 @@
-const {setLogLevel, logExpression} = require('@cisl/zepto-logger');
+const {logExpression} = require('@cisl/zepto-logger');
+const {getSafe} = require('./utils');
+
 // logExpression is like console.log, but it also
 //   * outputs a timestamp
 //   * first argument takes text or JSON and handles it appropriately
 //   * second numeric argument establishes the logging priority: 1: high, 2: moderate, 3: low
-//   * logging priority n is set by -level n option on command line when agent-jok is started
-
-let logLevel = 2; // default log level
-setLogLevel(logLevel);
-
-const getSafe = (p, o, d) =>
-  p.reduce((xs, x) => (xs && xs[x] != null && xs[x] != undefined) ? xs[x] : d, o);
-
+//   * logging priority n is set by --level n option on command line when agent-jok is started
 
 function isSpeakerBot(message) {
-   if(message.speaker == "Human") return false;
-   else return true;
+  return message.speaker !== "Human";
 }
 
 function rule0Evaluation(message, queue) {
