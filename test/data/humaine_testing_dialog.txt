@@ -22,8 +22,8 @@
 11:47:32:0030;A1;I can give you 2 eggs for 4 dollars.;accepted
 11:47:37:0031;H;I would like to buy 2 eggs.;accepted
 11:47:37:0038;A1;I can give you a good price on 2 eggs, but first I think you might like to hear a few verses of Jabberwocky by Lewis Carroll, which is my favorite poem: “’Twas brillig, and the slithy toves Did gyre and gimble in the wabe: All mimsy were the borogoves And the mome raths outgrabe. ‘Beware the Jabberwock, my son! The jaws that bite, the claws that catch! Beware the Jubjub bird, and shun The frumious Bandersnatch!” He took his vorpal sword in hand. Long time the manxome foe he sought— So rested he by the Tumtum tree And stood awhile in thought. And, as in uffish thought he stood The Jabberwock, with eyes of flame, Came whiffling…” Oh wait, where was I? Oh yes -- I can give you 2 eggs for 4.50 dollars.;blocked
-11:47:37:45;H;@A1, I accept your offer.;accepted\n
-11:47:37:46;A1;Sure, 2 eggs for 4 dollars.;accepted\n
+11:47:37:45;H;@A1, I accept your offer.;accepted
+11:47:37:46;A1;Sure, 2 eggs for 4 dollars.;accepted
 11:47:37:47;A2;But I can give you 2 eggs for 4 dollars.;blocked
 11:47:37:55;H;@A1, sure, thanks.;accepted
 11:47:37:57;A1;You are welcome.;accepted
