@@ -4,14 +4,13 @@ if (!envLoaded) console.log('warning:', __filename, '.env cannot be found');
 const appSettings = require('./appSettings.json');
 const http = require('http');
 const express = require('express');
-const path = require('path');
+const {get} = require('lodash');
 const {v1: uuidv1} = require('uuid');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
 const argv = require('minimist')(process.argv.slice(2));
 
 const {allowMessage} = require('./enforce-rules');
-const {getSafe} = require('./utils');
 
 let myPort = argv.port || appSettings.defaultPort || 14010;
 let logLevel = 1;
@@ -250,7 +249,7 @@ app.post('/startRound', (req, res) => {
 
   let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
   let negotiatorsInfo = JSON.parse(JSON.stringify(appSettings.negotiatorsInfo));
-  let humanUtility = getSafe(['human', 'utilityFunction'], roundInfo, null);
+  let humanUtility = get(roundInfo, ['human', 'utilityFunction'], null);
   negotiatorsInfo = negotiatorsInfo.map(negotiatorInfo => {
     logExpression("Filling in human Info.", 2);
     logExpression(negotiatorInfo, 2);
@@ -281,7 +280,7 @@ app.post('/startRound', (req, res) => {
     let utilityInfo = negotiatorInfo.utilityFunction;
     let prom;
     if(utilityInfo) {
-      utilityInfo.name = getSafe(['name'], negotiatorInfo, null);
+      utilityInfo.name = get(negotiatorInfo, ['name'], null);
       logExpression(utilityInfo, 2);
       prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
     } else {
@@ -436,7 +435,7 @@ function totalRound(message, negotiatorID) {
 }
 
 function updateTotals(message) {
-  let bidType = getSafe(['bid', 'type'], message, null);
+  let bidType = get(message, ['bid', 'type'], null);
   if(bidType == 'Accept') {
     // do stuff
     let agents = [message.speaker, message.addressee];
@@ -448,12 +447,12 @@ function updateTotals(message) {
           quantity:{}
         };
       }
-      let bundlePrice =  getSafe(['bid', 'price', 'value'], message, 0.0);
+      let bundlePrice =  get(message, ['bid', 'price', 'value'], 0.0);
       if(agent == 'Human') GLOB.humanBudget.value -= bundlePrice;
       GLOB.totals[agent].price += bundlePrice;
       Object.keys(message.bid.quantity).forEach(good => {
         if(!GLOB.totals[agent].quantity[good]) GLOB.totals[agent].quantity[good] = 0;
-        GLOB.totals[agent].quantity[good] += getSafe(['bid', 'quantity', good], message, 0);
+        GLOB.totals[agent].quantity[good] += get(message, ['bid', 'quantity', good], 0);
       });
     });
     logExpression("Round totals updated to: ", 2);

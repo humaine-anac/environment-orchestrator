@@ -1,5 +1,5 @@
 const {logExpression} = require('@cisl/zepto-logger');
-const {getSafe} = require('./utils');
+const {get} = require('lodash');
 
 // logExpression is like console.log, but it also
 //   * outputs a timestamp
@@ -18,7 +18,7 @@ function rule0Evaluation(message, queue) {
 
    let permit = true;
    let rationale = null;
-   let messageSpeaker = getSafe(['speaker'], message, null);
+   let messageSpeaker = get(message, ['speaker'], null);
    logExpression("messageSpeaker: " + messageSpeaker, 2);
    if(messageSpeaker == "Human" && queue && queue.length) {
       let hQueue = queue.filter(mBlock => {
@@ -50,9 +50,9 @@ function rule1Evaluation(message, humanBudget) {
 
    let permit = true;
    let rationale = null;
-   let messageType = getSafe(['bid', 'type'], message, null);
+   let messageType = get(message, ['bid', 'type'], null);
    if (messageType == 'Accept') {
-      let bidAmount = getSafe(['bid', 'price', 'value'], message, 0.0);
+      let bidAmount = get(message, ['bid', 'price', 'value'], 0.0);
       logExpression("In allowMessage, bidAmount is " + bidAmount + ", compared with human budget of " + humanBudget, 2);
       if(bidAmount > humanBudget) {
          permit = false;
@@ -227,7 +227,7 @@ function rule3Evaluation(message, queue) {
 function rule4Evaluation(message) {
    let permit = true;
    let rationale = null;
-   let messageText = getSafe(['text'], message, "");
+   let messageText = get(message, ['text'], "");
    let words = messageText.split(' ');
    if(words.length > 100) {
       permit = false;
