@@ -14,6 +14,7 @@ const {allowMessage} = require('./enforce-rules');
 
 let myPort = argv.port || appSettings.defaultPort || 14010;
 let logLevel = 1;
+const rounds = {};
 
 if (argv.level) {
   logLevel = argv.level;
@@ -217,6 +218,18 @@ app.post('/receiveHumanAllocation', (req, res) => {
   res.json(msg);
 });
 
+app.post('/initializeRound', (req, res) => {
+  if (!req.body) {
+    return res.json({msg: 'No POST body provided'});
+  }
+
+  logExpression("Received body: ", 2);
+  logExpression(req.body, 2);
+
+  rounds[req.body.id] = req.body;
+  res.json({msg: 'Done'});
+});
+
 app.post('/startRound', (req, res) => {
   if(!req.body) {
     return res.json({"msg": "No POST body provided."});
@@ -240,9 +253,10 @@ app.post('/startRound', (req, res) => {
     logExpression("Just cleared postRoundTimer.", 2);
   }
 
-  let roundInfo = req.body;
+  let roundInfo = rounds[req.body.id] || req.body;
   let roundNumber = roundInfo.roundNumber;
   let durations = roundInfo.durations;
+
   //ravel
   currentTurnID = 0;
   let proms = [];
