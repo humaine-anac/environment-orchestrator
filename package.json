@@ -22,7 +22,6 @@
     "prettier": "^1.16.1",
     "request": "*",
     "request-promise": "*",
-    "uuid": "*",
     "xregexp": "^2.0"
   }
 }

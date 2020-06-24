@@ -5,7 +5,6 @@ const appSettings = require('./appSettings.json');
 const http = require('http');
 const express = require('express');
 const {get} = require('lodash');
-const {v1: uuidv1} = require('uuid');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
 const request = require('request-promise');
 const argv = require('minimist')(process.argv.slice(2));
@@ -31,15 +30,9 @@ let GLOB = {
   negotiatorsInfo: appSettings.negotiatorsInfo,
   serviceMap: appSettings.serviceMap,
   humanBudget: appSettings.humanBudget || defaultHumanBudget,
-  queue: [],
-  totals: null
 };
 
-let warmUpTimer;
-let roundTimer;
-let postRoundTimer;
-//ravel
-let currentTurnID;
+const rounds = {};
 
 const app = express();
 
@@ -60,32 +53,33 @@ function wait(ms) {
   });
   return {
     promise: prom,
-    cancel: function() {clearTimeout(timeout);}
+    cancel: () => clearTimeout(timeout),
   };
 }
-
-let environmentUUID = uuidv1();
 
 app.get('/sendOffer', (req, res) => {
   if (!req.query.text) {
     return res.send(500, {"msg": "No text supplied."});
   }
 
+  const roundId = req.query.roundId;
+  const roundInfo = rounds[roundId];
+
   let message = {
+    roundId,
     text: req.query.text,
     speaker: req.query.speaker || 'Human',
     addressee: req.query.addressee || null,
     role: req.query.role || 'buyer',
-    environmentUUID: environmentUUID || null
   };
 
-  let negotiatorIDs = GLOB.negotiatorsInfo.map(nBlock => {return nBlock.name;});
-  let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
+  let negotiatorIDs = roundInfo.negotiatorsInfo.map(nBlock => nBlock.name);
+  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
 
   if(permission.permit) {
-    queueMessage(message); // Only queue message that has been permitted
+    queueMessage(roundInfo.queue, message); // Only queue message that has been permitted
     return sendMessages(sendMessage, message, negotiatorIDs)
     .then(responses => {
       let response = {
@@ -100,7 +94,7 @@ app.get('/sendOffer', (req, res) => {
     });
   }
   else {
-    let sender = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == message.speaker;})[0].name;
+    let sender = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.name === message.speaker)[0].name;
     message.rationale = permission.rationale;
     sendRejection(message, sender);
   }
@@ -114,16 +108,20 @@ app.post('/relayMessage', (req, res) => {
   let message = req.body;
   logExpression("message: ", 2);
   logExpression(message, 2);
-  let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
-  let agentNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'agent';}).map(nBlock => {return nBlock.name;});
 
-  let permission = allowMessage(message, GLOB.humanBudget.value, GLOB.queue);
+  const roundId = req.body.roundId;
+
+  roundInfo = rounds[roundId];
+  let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
+  let agentNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'agent').map(nBlock => nBlock.name);
+
+  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
 
   if(checkMessage(message) && permission.permit) {
-    queueMessage(message); // Only queue message that has been permitted
-    updateTotals(message);
+    queueMessage(roundInfo.queue, message); // Only queue message that has been permitted
+    updateTotals(roundInfo, message);
     let allResponses;
     return sendMessages(sendMessage, message, humanNegotiatorIDs)
     .then(humanResponses => {
@@ -149,8 +147,8 @@ app.post('/relayMessage', (req, res) => {
   else {
     logExpression("Rejected message!", 2);
     logExpression(message, 2);
-    logExpression(GLOB.negotiatorsInfo, 2);
-    let sender = GLOB.negotiatorsInfo.filter(nBlock => {
+    logExpression(roundInfo.negotiatorsInfo, 2);
+    let sender = roundInfo.negotiatorsInfo.filter(nBlock => {
       return ((nBlock.name == message.speaker) ||
           (nBlock.name == "chat-ui" && message.speaker == "Human"));})[0].name;
     logExpression("sender is: ", 2);
@@ -160,18 +158,20 @@ app.post('/relayMessage', (req, res) => {
   }
 });
 
-app.get('/viewQueue', (req, res) => {
-  return res.json(GLOB.queue);
+app.get('/viewQueue/:roundId', (req, res) => {
+  return res.json(rounds[req.params.roundId].queue);
 });
 
-app.get('/viewTotals', (req, res) => {
-  return res.json(GLOB.totals);
+app.get('/viewTotals/:roundId', (req, res) => {
+  return res.json(rounds[req.params.roundId].totals);
 });
 
 app.post('/calculateUtility/:agentName', (req, res) => {
-  logExpression(GLOB.negotiatorsInfo, 2);
+  const roundId = req.body.roundId;
+  const roundInfo = rounds[roundId];
+  logExpression(roundInfo.negotiatorsInfo, 2);
   let agentName = req.params.agentName;
-  let negotiatorsInfo = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
+  let negotiatorsInfo = roundInfo.negotiatorsInfo.filter(nBlock => {return nBlock.name == agentName;});
   logExpression("negotiatorsInfo is: ", 2);
   logExpression(negotiatorsInfo, 2);
 
@@ -204,15 +204,17 @@ app.post('/calculateUtility/:agentName', (req, res) => {
 });
 
 app.post('/receiveHumanAllocation', (req, res) => {
+  const roundId = req.body.roundId;
+  const roundInfo = rounds[roundId];
   logExpression("Received body: ", 2);
   logExpression(req.body, 2);
   let msg = null;
-  if(GLOB.totals.Human && req.body) {
-    GLOB.totals.Human.allocation = req.body;
-    msg = {"status": "Acknowledged"};
+  if(roundInfo.totals.Human && req.body) {
+    roundInfo.totals.Human.allocation = req.body;
+    msg = {roundId, "status": "Acknowledged"};
   }
   else {
-    msg = {"status": "Failed", "Reason": "No body supplied."};
+    msg = {roundId, "status": "Failed", "Reason": "No body supplied."};
   }
   logExpression(msg, 2);
   res.json(msg);
@@ -226,8 +228,8 @@ app.post('/initializeRound', (req, res) => {
   logExpression("Received body: ", 2);
   logExpression(req.body, 2);
 
-  rounds[req.body.id] = req.body;
-  res.json({msg: 'Done'});
+  rounds[req.body.roundId] = req.body;
+  res.json({roundId: req.body.roundId, msg: 'Done'});
 });
 
 app.post('/startRound', (req, res) => {
@@ -235,30 +237,29 @@ app.post('/startRound', (req, res) => {
     return res.json({"msg": "No POST body provided."});
   }
 
+  const roundId = req.body.id;
+  let roundInfo = rounds[roundId];
+  let durations = roundInfo.durations;
+
   logExpression("Received body: ", 2);
   logExpression(req.body, 2);
 
-  if(warmUpTimer) {
-    warmUpTimer.cancel();
+  if (roundInfo.warmUpTimer) {
+    roundInfo.warmUpTimer.cancel();
     logExpression("Just cleared warmupTimer.", 2);
   }
 
-  if(roundTimer) {
-    roundTimer.cancel();
+  if (roundInfo.roundTimer) {
+    roundInfo.roundTimer.cancel();
     logExpression("Just cleared roundTimer.", 2);
   }
 
-  if(postRoundTimer) {
-    postRoundTimer.cancel();
+  if (roundInfo.postRoundTimer) {
+    roundInfo.postRoundTimer.cancel();
     logExpression("Just cleared postRoundTimer.", 2);
   }
 
-  let roundInfo = rounds[req.body.id] || req.body;
-  let roundNumber = roundInfo.roundNumber;
-  let durations = roundInfo.durations;
-
   //ravel
-  currentTurnID = 0;
   let proms = [];
 
   let serviceMap = JSON.parse(JSON.stringify(appSettings.serviceMap));
@@ -282,13 +283,13 @@ app.post('/startRound', (req, res) => {
     agentInfo.role = 'seller';
     negotiatorsInfo.push(agentInfo);
   });
-  GLOB.serviceMap = serviceMap;
-  GLOB.negotiatorsInfo = negotiatorsInfo;
-  GLOB.queue = [];
-  GLOB.totals = {};
-  GLOB.humanBudget = JSON.parse(JSON.stringify(appSettings.humanBudget)) || defaultHumanBudget;
-  let negotiatorIDs = negotiatorsInfo.map(nBlock => {return nBlock.name;});
-  let humanNegotiatorIDs = GLOB.negotiatorsInfo.filter(nBlock => {return nBlock.type == 'human';}).map(nBlock => {return nBlock.name;});
+  roundInfo.serviceMap = serviceMap;
+  roundInfo.negotiatorsInfo = negotiatorsInfo;
+  roundInfo.queue = [];
+  roundInfo.totals = {};
+  roundInfo.humanBudget = JSON.parse(JSON.stringify(appSettings.humanBudget)) || defaultHumanBudget;
+  let negotiatorIDs = negotiatorsInfo.map(nBlock => nBlock.name);
+  let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
 
   negotiatorsInfo.forEach(negotiatorInfo => {
     let utilityInfo = negotiatorInfo.utilityFunction;
@@ -312,39 +313,39 @@ app.post('/startRound', (req, res) => {
   .then(agentResponses => {
     res.json(agentResponses);
     let roundMetadata = {
-      roundNumber,
+      roundId,
       durations,
-      humanBudget: GLOB.humanBudget
+      humanBudget: roundInfo.humanBudget
     };
     sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
-    warmUpTimer = wait(1000 * durations.warmUp);
-    warmUpTimer.promise.then(() => {
+    roundInfo.warmUpTimer = wait(1000 * durations.warmUp);
+    roundInfo.warmUpTimer.promise.then(() => {
       logExpression("warmUpTimer has expired.", 2);
       let startRoundMessage = {
+        roundId,
         roundDuration: durations.round,
-        roundNumber: roundNumber,
         timestamp: new Date()
       };
       sendMessages(startRound, startRoundMessage, negotiatorIDs);
     })
     .then(() => {
-      roundTimer = wait(1000 * durations.round);
-      roundTimer.promise.then(() => {
+      roundInfo.roundTimer = wait(1000 * durations.round);
+      roundInfo.roundTimer.promise.then(() => {
         logExpression("roundTimer has expired.", 2);
         let endRoundMessage = {
-          roundNumber: roundNumber,
+          roundId,
           timestamp: new Date()
         };
         sendMessages(endRound, endRoundMessage, negotiatorIDs);
       })
       .then(() => {
-        postRoundTimer = wait(1000 * durations.post);
-        postRoundTimer.promise.then(() => {
+        roundInfo.postRoundTimer = wait(1000 * durations.post);
+        roundInfo.postRoundTimer.promise.then(() => {
           logExpression("postRoundTimer has expired.", 2);
-          return summarizeResults()
+          return summarizeResults(roundInfo)
           .then(roundTotals => {
             let roundTotalsMessage = {
-              roundNumber,
+              roundId,
               roundTotals
             };
             logExpression("I am sending this results message to the human negotiator IDs: ", 2);
@@ -362,7 +363,7 @@ app.post('/startRound', (req, res) => {
 });
 
 http.createServer(app).listen(app.get('port'), () => {
-  logExpression('Express server listening on port ' + app.get('port'), 1);
+  logExpression(`Express server listening on port ${app.get('port')}`, 1);
 });
 
 
@@ -372,18 +373,17 @@ function checkMessage(msg) {
     (msg.role == 'buyer' || msg.role == 'seller');
 }
 
-function queueMessage(message) {
+function queueMessage(queue, message) {
   logExpression("In queueMessage, message is: ", 3);
   logExpression(message, 3);
   let msg = JSON.parse(JSON.stringify(message));
-  GLOB.queue.push({
+  queue.push({
     msg,
     timeStamp: new Date()
   });
   logExpression("------CHECK QUEUE-----", 2);
-  logExpression(GLOB.queue, 2);
+  logExpression(queue, 2);
   logExpression("----------------------", 2);
-  return;
 }
 
 function calculateUtility(agentRole, utilityBundle) {
@@ -448,58 +448,65 @@ function totalRound(message, negotiatorID) {
   return postDataToServiceType(message, negotiatorID, '/receiveRoundTotals');
 }
 
-function updateTotals(message) {
+function updateTotals(roundInfo, message) {
   let bidType = get(message, ['bid', 'type'], null);
   if(bidType == 'Accept') {
     // do stuff
     let agents = [message.speaker, message.addressee];
-    if(!GLOB.totals) GLOB.totals = {};
+    if(!roundInfo.totals) {
+      roundInfo.totals = {};
+    }
+
     agents.forEach(agent => {
-      if(!GLOB.totals[agent]) {
-        GLOB.totals[agent] = {
+      if(!roundInfo.totals[agent]) {
+        roundInfo.totals[agent] = {
           price: 0.0,
           quantity:{}
         };
       }
       let bundlePrice =  get(message, ['bid', 'price', 'value'], 0.0);
-      if(agent == 'Human') GLOB.humanBudget.value -= bundlePrice;
-      GLOB.totals[agent].price += bundlePrice;
+      if(agent == 'Human') {
+        roundInfo.humanBudget.value -= bundlePrice;
+      }
+      roundInfo.totals[agent].price += bundlePrice;
       Object.keys(message.bid.quantity).forEach(good => {
-        if(!GLOB.totals[agent].quantity[good]) GLOB.totals[agent].quantity[good] = 0;
-        GLOB.totals[agent].quantity[good] += get(message, ['bid', 'quantity', good], 0);
+        if(!roundInfo.totals[agent].quantity[good]) {
+          roundInfo.totals[agent].quantity[good] = 0;
+        }
+        roundInfo.totals[agent].quantity[good] += get(message, ['bid', 'quantity', good], 0);
       });
     });
     logExpression("Round totals updated to: ", 2);
-    logExpression(GLOB.totals, 2);
+    logExpression(roundInfo.totals, 2);
   }
   return;
 }
 
-function summarizeResults() {
+function summarizeResults(roundInfo) {
   logExpression("Just got inside summarizeResults.", 2);
   let summary = {};
   let proms = [];
-  GLOB.negotiatorsInfo.forEach(negotiatorInfo => {
+  roundInfo.negotiatorsInfo.forEach(negotiatorInfo => {
     logExpression("negotiatorInfo is: ", 2);
     logExpression(negotiatorInfo, 2);
     let agentName = negotiatorInfo.name;
     if(agentName == "chat-ui" || agentName == "human-ui") agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
-    if(GLOB.totals[agentName] && !summary[agentName]) { // Don't duplicate utility information for e.g. chatUI and humanUI, which both serve the same human
+    if(roundInfo.totals[agentName] && !summary[agentName]) { // Don't duplicate utility information for e.g. chatUI and humanUI, which both serve the same human
       summary[agentName] = {
-        quantity: GLOB.totals[agentName].quantity
+        quantity: roundInfo.totals[agentName].quantity
       };
       let utilityInfo = negotiatorInfo.utilityFunction;
       if(negotiatorInfo.role == 'seller') {
         logExpression("Seller!", 2);
-        summary[agentName].revenue = GLOB.totals[agentName].price;
-        utilityInfo.bundle = JSON.parse(JSON.stringify(GLOB.totals[agentName]));
+        summary[agentName].revenue = roundInfo.totals[agentName].price;
+        utilityInfo.bundle = JSON.parse(JSON.stringify(roundInfo.totals[agentName]));
       }
       else if (negotiatorInfo.role == 'buyer') {
         logExpression("Buyer!", 2);
-        summary[agentName].cost = GLOB.totals[agentName].price;
+        summary[agentName].cost = roundInfo.totals[agentName].price;
         utilityInfo.bundle = {
-          cost: JSON.parse(JSON.stringify(GLOB.totals[agentName])).price,
-          products: JSON.parse(JSON.stringify(GLOB.totals[agentName])).allocation || {}
+          cost: JSON.parse(JSON.stringify(roundInfo.totals[agentName])).price,
+          products: JSON.parse(JSON.stringify(roundInfo.totals[agentName])).allocation || {}
         };
       }
       logExpression("Just before proms.push, utilityInfo is: ", 2);
@@ -582,159 +589,3 @@ function options2URL(options) {
   if (options.path) url  += options.path;
   return url;
 }
-
-// Bad old code, just in case
-//app.get('/startRoundOld', (req, res) => {
-//  logExpression("Inside /startRound (GET).", 2);
-//
-//  let round = req.query.round || 0;
-//
-//  let environmentUUID = appSettings.environmentUUID || 'abcdefgh';
-//
-//  let negotiators = appSettings.negotiatorInfo;
-//  negotiators = negotiators.map(nBlock => {nBlock.environmentUUID = environmentUUID; return nBlock;});
-//  let negotiatorIDs = negotiators.map(nBlock => {return nBlock.id;});
-//
-//  initializeUtilities(negotiators)
-//  .then(agentResponses => {
-//    res.json(agentResponses);
-//    wait(1000 * roundWarmupDuration)
-//    .then(() => {
-//      let startRoundMessage = {
-//        roundDuration: roundDuration,
-//        roundNumber: round,
-//        timestamp: new Date()
-//      };
-//      sendMessages(startRound, startRoundMessage, negotiatorIDs);
-//    })
-//    .then(() => {
-//      wait(1000 * roundDuration)
-//      .then(() => {
-//        let endRoundMessage = {
-//          roundNumber: round,
-//          timestamp: new Date()
-//        };
-//        sendMessages(endRound, endRoundMessage, negotiatorIDs);
-//      });
-//    });
-//  })
-//  .catch(err => {
-//    res.json(err);
-//  });
-//});
-//
-//function initializeUtilitiesOld(negotiators) {
-//  let proms = [];
-//  negotiators.forEach(negotiatorInfo => {
-//    let prom = getUtilityInfo(negotiatorInfo)
-//    .then(utilityInfo => {
-//      utilityInfo.name = negotiatorInfo.name;
-//      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
-//      logExpression(utilityInfo, 2);
-//      return sendUtilityInfo(negotiatorInfo, utilityInfo)
-//      .then(response => {
-//        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
-//        logExpression(response, 2);
-//        return response;
-//      })
-//      .catch(e => {
-//        logExpression("Encountered error: ", 2);
-//        logExpression(e, 2);
-//        return null;
-//      });
-//    });
-//    proms.push(prom);
-//  });
-//  return Promise.all(proms)
-//  .then(values => {
-//    logExpression("Values: ", 2);
-//    logExpression(values, 2);
-//    return values;
-//  })
-//  .catch(err => {
-//    logExpression("Error in Promise.all: ", 2);
-//    logExpression(err, 2);
-//    return Promise.resolve(null);
-//  });
-//}
-
-//function initializeUtilities(negotiators) {
-//  let proms = [];
-//  negotiators.forEach(negotiatorInfo => {
-//    let prom = getUtilityInfo(negotiatorInfo)
-//    .then(utilityInfo => {
-//      utilityInfo.name = negotiatorInfo.name;
-//      logExpression("For negotiator " + negotiatorInfo.id + ", utility is: ", 2);
-//      logExpression(utilityInfo, 2);
-//      return sendUtilityInfo(negotiatorInfo, utilityInfo)
-//      .then(response => {
-//        logExpression("Received response from utility message sent to " + negotiatorInfo.id, 2);
-//        logExpression(response, 2);
-//        return response;
-//      })
-//      .catch(e => {
-//        logExpression("Encountered error: ", 2);
-//        logExpression(e, 2);
-//        return null;
-//      });
-//    });
-//    proms.push(prom);
-//  });
-//  return Promise.all(proms)
-//  .then(values => {
-//    logExpression("Values: ", 2);
-//    logExpression(values, 2);
-//    return values;
-//  })
-//  .catch(err => {
-//    logExpression("Error in Promise.all: ", 2);
-//    logExpression(err, 2);
-//    return Promise.resolve(null);
-//  });
-//}
-
-//function getDataFromServiceType(serviceType, path) {
-//  let serviceMap = appSettings.serviceMap;
-//  logExpression("Inside getDataFromServiceType", 2);
-//  if(serviceMap[serviceType]) {
-//    let options = serviceMap[serviceType];
-//    options.path = path;
-//    let url = options2URL(options);
-//    let rOptions = {
-//      method: 'GET',
-//      uri: url
-//    };
-//    logExpression("In getDataFromServiceType, rOptions is: ", 2);
-//    logExpression(rOptions, 2);
-//    return request(rOptions)
-//    .then(response => {
-//      logExpression("Got response: ", 2);
-//      logExpression(response, 2);
-//      return response;
-//    })
-//    .catch(error => {
-//      logExpression("Error: ", 1);
-//      logExpression(error, 1);
-//      return null;
-//    });
-//  }
-//}
-
-//// Test route for calculateUtility
-//app.get('/calculateUtility/:agentType', (req, res) => {
-//  let agentType = req.params.agentType;
-//  let utilityBundle;
-//  if(agentType == 'human') {
-//    utilityBundle = require('./buyerUtilityBundle.json');
-//  }
-//  else {
-//    utilityBundle = require('./sellerUtilityBundle.json');
-//  }
-//  return calculateUtility(agentType, utilityBundle)
-//  .then(calculatedUtility => {
-//    res.json(calculatedUtility);
-//  })
-//  .catch(error => {
-//    res.status(500).send(error);
-//  });
-//});
