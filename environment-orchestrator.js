@@ -26,14 +26,6 @@ let defaultHumanBudget = {
   "value": 100
 };
 
-let GLOB = {
-  negotiatorsInfo: appSettings.negotiatorsInfo,
-  serviceMap: appSettings.serviceMap,
-  humanBudget: appSettings.humanBudget || defaultHumanBudget,
-};
-
-const rounds = {};
-
 const app = express();
 
 app.set('port', process.env.PORT || myPort);
@@ -149,8 +141,8 @@ app.post('/relayMessage', (req, res) => {
     logExpression(message, 2);
     logExpression(roundInfo.negotiatorsInfo, 2);
     let sender = roundInfo.negotiatorsInfo.filter(nBlock => {
-      return ((nBlock.name == message.speaker) ||
-          (nBlock.name == "chat-ui" && message.speaker == "Human"));})[0].name;
+      return ((nBlock.name == message.speaker) || (["chat-ui", "competition-ui"].includes(nBlock.name) && message.speaker == "Human"));
+    })[0].name;
     logExpression("sender is: ", 2);
     logExpression(sender, 2);
     message.rationale = permission.rationale;
@@ -237,7 +229,7 @@ app.post('/startRound', (req, res) => {
     return res.json({"msg": "No POST body provided."});
   }
 
-  const roundId = req.body.id;
+  const roundId = req.body.roundId;
   let roundInfo = rounds[roundId];
   let durations = roundInfo.durations;
 
@@ -296,6 +288,7 @@ app.post('/startRound', (req, res) => {
     let prom;
     if(utilityInfo) {
       utilityInfo.name = get(negotiatorInfo, ['name'], null);
+      utilityInfo.roundId = roundId;
       logExpression(utilityInfo, 2);
       prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
     } else {
@@ -490,7 +483,7 @@ function summarizeResults(roundInfo) {
     logExpression("negotiatorInfo is: ", 2);
     logExpression(negotiatorInfo, 2);
     let agentName = negotiatorInfo.name;
-    if(agentName == "chat-ui" || agentName == "human-ui") agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
+    if (["chat-ui", "human-ui", "competition-ui"].includes(agentName)) agentName = "Human"; // HACK !! We need to differentiate between name of UI and name of user of the UI
     if(roundInfo.totals[agentName] && !summary[agentName]) { // Don't duplicate utility information for e.g. chatUI and humanUI, which both serve the same human
       summary[agentName] = {
         quantity: roundInfo.totals[agentName].quantity
@@ -559,27 +552,29 @@ function sendMessages(func, message, negotiatorIDs) {
 }
 
 function postDataToServiceType(json, serviceID, path) {
-  let serviceMap = GLOB.serviceMap;
-  if(serviceMap[serviceID]) {
-    let options = serviceMap[serviceID];
-    options.path = path;
-    let url = options2URL(options);
-    let rOptions = {
-      method: 'POST',
-      uri: url,
-      body: json,
-      json: true
-    };
-    return request(rOptions)
-    .then(response => {
-      return response;
-    })
-    .catch(error => {
-      logExpression("Error: ", 1);
-      logExpression(error, 1);
-      return null;
-    });
+  let serviceMap = rounds[json.roundId].serviceMap;
+  if (!serviceMap[serviceID]) {
+    throw new Error(`Invalid service: ${serviceID}`);
   }
+
+  let options = serviceMap[serviceID];
+  options.path = path;
+  let url = options2URL(options);
+  let rOptions = {
+    method: 'POST',
+    uri: url,
+    body: json,
+    json: true
+  };
+  return request(rOptions)
+  .then(response => {
+    return response;
+  })
+  .catch(error => {
+    logExpression("Error: ", 1);
+    logExpression(error, 1);
+    return null;
+  });
 }
 
 function options2URL(options) {

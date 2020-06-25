@@ -38,7 +38,7 @@ Here is an example POST body:
 
 ```
 {
-   "roundNumber":1,
+   "roundId":1,
    "agents":[
       {
          "protocol":"http",
