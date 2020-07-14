@@ -65,10 +65,16 @@ app.get('/sendOffer', (req, res) => {
     role: req.query.role || 'buyer',
   };
 
+  let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
   let negotiatorIDs = roundInfo.negotiatorsInfo.map(nBlock => nBlock.name);
   let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
+
+  sendMessages(sendLog, Object.assign({}, message, {
+    permitted: permission.permit,
+    rationale: permission.rationale
+  }), humanNegotiatorIDs);
 
   if(permission.permit) {
     queueMessage(roundInfo.queue, message); // Only queue message that has been permitted
@@ -110,6 +116,11 @@ app.post('/relayMessage', (req, res) => {
   let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
+
+  sendMessages(sendLog, Object.assign({}, message, {
+    permitted: permission.permit,
+    rationale: permission.rationale
+  }), humanNegotiatorIDs);
 
   if(checkMessage(message) && permission.permit) {
     queueMessage(roundInfo.queue, message); // Only queue message that has been permitted
@@ -202,7 +213,7 @@ app.post('/receiveHumanAllocation', (req, res) => {
   logExpression(req.body, 2);
   let msg = null;
   if(roundInfo.totals.Human && req.body) {
-    roundInfo.totals.Human.allocation = req.body;
+    roundInfo.totals.Human.allocation = req.body.payload;
     msg = {roundId, "status": "Acknowledged"};
   }
   else {
@@ -224,7 +235,7 @@ app.post('/initializeRound', (req, res) => {
   res.json({roundId: req.body.roundId, msg: 'Done'});
 });
 
-app.post('/startRound', (req, res) => {
+app.post('/startRound', async (req, res) => {
   if(!req.body) {
     return res.json({"msg": "No POST body provided."});
   }
@@ -283,76 +294,73 @@ app.post('/startRound', (req, res) => {
   let negotiatorIDs = negotiatorsInfo.map(nBlock => nBlock.name);
   let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
 
-  negotiatorsInfo.forEach(negotiatorInfo => {
-    let utilityInfo = negotiatorInfo.utilityFunction;
-    let prom;
-    if(utilityInfo) {
-      utilityInfo.name = get(negotiatorInfo, ['name'], null);
-      utilityInfo.roundId = roundId;
-      logExpression(utilityInfo, 2);
-      prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
-    } else {
-      prom = Promise.resolve(null);
-    }
-    proms.push(prom);
-  });
-
-  Promise.all(proms)
-  .then(values => {
-    logExpression("Promise all results: ", 2);
-    logExpression(values, 2);
-    return values;
-  })
-  .then(agentResponses => {
-    res.json(agentResponses);
+  try {
     let roundMetadata = {
       roundId,
       durations,
       humanBudget: roundInfo.humanBudget
     };
-    sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
-    roundInfo.warmUpTimer = wait(1000 * durations.warmUp);
-    roundInfo.warmUpTimer.promise.then(() => {
-      logExpression("warmUpTimer has expired.", 2);
-      let startRoundMessage = {
-        roundId,
-        roundDuration: durations.round,
-        timestamp: new Date()
-      };
-      sendMessages(startRound, startRoundMessage, negotiatorIDs);
-    })
-    .then(() => {
-      roundInfo.roundTimer = wait(1000 * durations.round);
-      roundInfo.roundTimer.promise.then(() => {
-        logExpression("roundTimer has expired.", 2);
-        let endRoundMessage = {
-          roundId,
-          timestamp: new Date()
-        };
-        sendMessages(endRound, endRoundMessage, negotiatorIDs);
-      })
-      .then(() => {
-        roundInfo.postRoundTimer = wait(1000 * durations.post);
-        roundInfo.postRoundTimer.promise.then(() => {
-          logExpression("postRoundTimer has expired.", 2);
-          return summarizeResults(roundInfo)
-          .then(roundTotals => {
-            let roundTotalsMessage = {
-              roundId,
-              roundTotals
-            };
-            logExpression("I am sending this results message to the human negotiator IDs: ", 2);
-            logExpression(roundTotalsMessage, 2);
-            logExpression(humanNegotiatorIDs, 2);
-            sendMessages(totalRound, roundTotalsMessage, humanNegotiatorIDs);
-          });
-        });
-      });
+    await sendMessages(sendRoundMetadata, roundMetadata, humanNegotiatorIDs);
+
+    negotiatorsInfo.forEach(negotiatorInfo => {
+      let utilityInfo = negotiatorInfo.utilityFunction;
+      let prom;
+      if (utilityInfo) {
+        utilityInfo.name = get(negotiatorInfo, ['name'], null);
+        utilityInfo.roundId = roundId;
+        logExpression(utilityInfo, 2);
+        prom = sendUtilityInfo(negotiatorInfo.name, utilityInfo);
+      } else {
+        prom = Promise.resolve(null);
+      }
+      proms.push(prom);
     });
-  })
-  .catch(err => {
+
+    let values = await Promise.all(proms);
+
+    logExpression("Promise all results: ", 2);
+    logExpression(values, 2);
+
+    res.json(values);
+
+    roundInfo.warmUpTimer = wait(1000 * durations.warmUp);
+    await roundInfo.warmUpTimer.promise;
+    logExpression("warmUpTimer has expired.", 2);
+    let startRoundMessage = {
+      roundId,
+      roundDuration: durations.round,
+      timestamp: new Date()
+    };
+    sendMessages(startRound, startRoundMessage, negotiatorIDs);
+
+    roundInfo.roundTimer = wait(1000 * durations.round);
+    await roundInfo.roundTimer.promise;
+    logExpression("roundTimer has expired.", 2);
+    let endRoundMessage = {
+      roundId,
+      timestamp: new Date()
+    };
+    sendMessages(endRound, endRoundMessage, negotiatorIDs);
+
+    roundInfo.postRoundTimer = wait(1000 * durations.post);
+    await roundInfo.postRoundTimer.promise;
+
+    logExpression("postRoundTimer has expired.", 2);
+
+    const roundTotals = await summarizeResults(roundInfo);
+
+    let roundTotalsMessage = {
+      roundId,
+      roundTotals
+    };
+    logExpression("I am sending this results message to the human negotiator IDs: ", 2);
+    logExpression(roundTotalsMessage, 2);
+    logExpression(humanNegotiatorIDs, 2);
+    sendMessages(totalRound, roundTotalsMessage, humanNegotiatorIDs);
+  }
+  catch (err) {
     res.json(err);
-  });
+  }
 });
 
 http.createServer(app).listen(app.get('port'), () => {
@@ -391,6 +399,14 @@ function sendUtilityInfo(negotiatorID, utilityInfo) {
   logExpression("To the recipient: ", 2);
   logExpression(negotiatorID, 2);
   return postDataToServiceType(utilityInfo, negotiatorID, '/setUtility');
+}
+
+function sendLog(message, negotiatorID) {
+  logExpression("In sendLog, sending message: ", 2);
+  logExpression(message, 2);
+  logExpression("To the recipient: ", 2);
+  logExpression(negotiatorID, 2);
+  return postDataToServiceType(message, negotiatorID, '/receiveLog');
 }
 
 function sendMessage(message, negotiatorID) {
