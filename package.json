@@ -15,6 +15,7 @@
   "author": "Jeff Kephart",
   "dependencies": {
     "@cisl/zepto-logger": "^1.1.0",
+    "@humaine/utils": "^0.2.0",
     "dotenv": "^4.0.0",
     "express": "^4.16.0",
     "lodash": "^4.17.11",

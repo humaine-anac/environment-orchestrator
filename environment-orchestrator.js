@@ -6,6 +6,7 @@ const http = require('http');
 const express = require('express');
 const {get} = require('lodash');
 const { logExpression, setLogLevel } = require('@cisl/zepto-logger');
+const { optionsToUrl } = require('@humaine/utils/url');
 const request = require('request-promise');
 const argv = require('minimist')(process.argv.slice(2));
 
@@ -98,8 +99,8 @@ app.get('/sendOffer', (req, res) => {
   }
 });
 
-app.post('/relayMessage', (req, res) => {
-  if(!req.body) {
+app.post('/relayMessage', async (req, res) => {
+  if (!req.body) {
     return res.status(500).send({"msg": "No valid message supplied.", message});
   }
 
@@ -122,32 +123,7 @@ app.post('/relayMessage', (req, res) => {
     rationale: permission.rationale
   }), humanNegotiatorIDs);
 
-  if(checkMessage(message) && permission.permit) {
-    queueMessage(roundInfo.queue, message); // Only queue message that has been permitted
-    updateTotals(roundInfo, message);
-    let allResponses;
-    return sendMessages(sendMessage, message, humanNegotiatorIDs)
-    .then(humanResponses => {
-      allResponses = humanResponses;
-      logExpression("allResponses from human is: ", 2);
-      logExpression(allResponses);
-      if(message.bid) delete message.bid; // Don't let other agents see the bid itself.
-      return sendMessages(sendMessage, message, agentNegotiatorIDs);
-    })
-    .then(agentResponses => {
-      allResponses = allResponses.concat(agentResponses);
-      let response = {
-        "status": "Acknowledged",
-        allResponses
-      };
-
-      res.json(response);
-    })
-    .catch(err => {
-      res.status(500).send(err);
-    });
-  }
-  else {
+  const rejectMessage = (rationale) => {
     logExpression("Rejected message!", 2);
     logExpression(message, 2);
     logExpression(roundInfo.negotiatorsInfo, 2);
@@ -156,8 +132,55 @@ app.post('/relayMessage', (req, res) => {
     })[0].name;
     logExpression("sender is: ", 2);
     logExpression(sender, 2);
-    message.rationale = permission.rationale;
+    message.rationale = rationale;
     sendRejection(message, sender);
+    return res.json({
+      status: 'Acknowledged',
+    });
+  }
+
+  const bidType = get(message, ['bid', 'type'], null);
+
+  if (checkMessage(message) && permission.permit) {
+    if (get(message, ['bid', 'type'], null) === 'Accept') {
+      let responses = await sendMessages(sendConfirmAccept, message, humanNegotiatorIDs);
+      for (const response of responses) {
+        if (response.status !== 'acknowledged') {
+          return rejectMessage('User rejected bid offer');
+        }
+      }
+      updateTotals(roundInfo, message);
+    }
+    queueMessage(roundInfo.queue, message);
+
+    const agentMessage = Object.assign({}, message);
+    if (agentMessage.bid !== undefined) {
+      delete agentMessage.bid;
+    }
+
+    try {
+      const promises = [];
+      promises.push(sendMessages(sendMessage, message, humanNegotiatorIDs));
+      promises.push(sendMessages(sendMessage, agentMessage, agentNegotiatorIDs));
+
+      const responses = await Promise.all(promises);
+
+      logExpression('allResponses from human is: ', 2);
+      logExpression(responses[0]);
+
+      const allResponses = [...responses[0], ...responses[1]];
+
+      res.json({
+        status: 'Acknowledged',
+        allResponses
+      });
+    }
+    catch (exc) {
+      res.status(500).send(err);
+    }
+  }
+  else {
+    return rejectMessage(permission.rationale);
   }
 });
 
@@ -409,6 +432,14 @@ function sendLog(message, negotiatorID) {
   return postDataToServiceType(message, negotiatorID, '/receiveLog');
 }
 
+function sendConfirmAccept(message, negotiatorID) {
+  logExpression("In sendMessage, sending message: ", 2);
+  logExpression(message, 2);
+  logExpression("To the recipient: ", 2);
+  logExpression(negotiatorID, 2);
+  return postDataToServiceType(message, negotiatorID, '/confirmAccept');
+}
+
 function sendMessage(message, negotiatorID) {
   logExpression("In sendMessage, sending message: ", 2);
   logExpression(message, 2);
@@ -458,37 +489,32 @@ function totalRound(message, negotiatorID) {
 }
 
 function updateTotals(roundInfo, message) {
-  let bidType = get(message, ['bid', 'type'], null);
-  if(bidType == 'Accept') {
-    // do stuff
-    let agents = [message.speaker, message.addressee];
-    if(!roundInfo.totals) {
-      roundInfo.totals = {};
-    }
-
-    agents.forEach(agent => {
-      if(!roundInfo.totals[agent]) {
-        roundInfo.totals[agent] = {
-          price: 0.0,
-          quantity:{}
-        };
-      }
-      let bundlePrice =  get(message, ['bid', 'price', 'value'], 0.0);
-      if(agent == 'Human') {
-        roundInfo.humanBudget.value -= bundlePrice;
-      }
-      roundInfo.totals[agent].price += bundlePrice;
-      Object.keys(message.bid.quantity).forEach(good => {
-        if(!roundInfo.totals[agent].quantity[good]) {
-          roundInfo.totals[agent].quantity[good] = 0;
-        }
-        roundInfo.totals[agent].quantity[good] += get(message, ['bid', 'quantity', good], 0);
-      });
-    });
-    logExpression("Round totals updated to: ", 2);
-    logExpression(roundInfo.totals, 2);
+  let agents = [message.speaker, message.addressee];
+  if(!roundInfo.totals) {
+    roundInfo.totals = {};
   }
-  return;
+
+  agents.forEach(agent => {
+    if(!roundInfo.totals[agent]) {
+      roundInfo.totals[agent] = {
+        price: 0.0,
+        quantity:{}
+      };
+    }
+    let bundlePrice =  get(message, ['bid', 'price', 'value'], 0.0);
+    if(agent == 'Human') {
+      roundInfo.humanBudget.value -= bundlePrice;
+    }
+    roundInfo.totals[agent].price += bundlePrice;
+    Object.keys(message.bid.quantity).forEach(good => {
+      if(!roundInfo.totals[agent].quantity[good]) {
+        roundInfo.totals[agent].quantity[good] = 0;
+      }
+      roundInfo.totals[agent].quantity[good] += get(message, ['bid', 'quantity', good], 0);
+    });
+  });
+  logExpression("Round totals updated to: ", 2);
+  logExpression(roundInfo.totals, 2);
 }
 
 function summarizeResults(roundInfo) {
@@ -575,7 +601,7 @@ function postDataToServiceType(json, serviceID, path) {
 
   let options = serviceMap[serviceID];
   options.path = path;
-  let url = options2URL(options);
+  let url = optionsToUrl(options);
   let rOptions = {
     method: 'POST',
     uri: url,
@@ -591,12 +617,4 @@ function postDataToServiceType(json, serviceID, path) {
     logExpression(error, 1);
     return null;
   });
-}
-
-function options2URL(options) {
-  let protocol = options.protocol || 'http';
-  let url = protocol + '://' + options.host;
-  if (options.port) url += ':' + options.port;
-  if (options.path) url  += options.path;
-  return url;
 }
