@@ -118,10 +118,12 @@ app.post('/relayMessage', async (req, res) => {
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
 
-  sendMessages(sendLog, Object.assign({}, message, {
-    permitted: permission.permit,
-    rationale: permission.rationale
-  }), humanNegotiatorIDs);
+  const logMessage = (message, permitted, rationale) => {
+    sendMessages(sendLog, Object.assign({}, message, {
+      permitted: permitted,
+      rationale: rationale
+    }), humanNegotiatorIDs);
+  }
 
   const rejectMessage = (rationale) => {
     logExpression("Rejected message!", 2);
@@ -134,6 +136,7 @@ app.post('/relayMessage', async (req, res) => {
     logExpression(sender, 2);
     message.rationale = rationale;
     sendRejection(message, sender);
+    logMessage(message, false, message.rationale);
     return res.json({
       status: 'Acknowledged',
     });
@@ -141,28 +144,30 @@ app.post('/relayMessage', async (req, res) => {
 
   const bidType = get(message, ['bid', 'type'], null);
 
-  let valid_offer = true;
-  if(toLower(message['speaker']) !== "human" && message['bid']['type'] !== undefined && (message['bid']['type'] == "Accept" || 
-                                                                           message['bid']['type'] == "AcceptOffer" || 
-                                                                           message['bid']['type'] == "SellOffer")) {                               
+  if (message['speaker'].toLowerCase() !== "human" && bidType && ['Accept', 'AcceptOffer', 'SellOffer'].includes(bidType)) {
     // check if quantities exist and all have values
-    if(Object.keys(message['bid']['quantity']).length === 0) {
-        valid_offer = false;
-    } else {
-        for(item in message['bid']['quantity']) {
-            if(message['bid']['quantity'][item] == undefined) {
-                valid_offer = false;
+    if (Object.keys(message['bid']['quantity']).length === 0) {
+      permission.permit = false;
+      permission.rationale = 'no items included in bid offer';
+    }
+    else {
+        for (let item in message['bid']['quantity']) {
+            if (message['bid']['quantity'][item] == undefined) {
+              permission.permit = false;
+              permission.rationale = `did not include valid quantity for item '${item}'`;
+              break;
             }
         }
     }
 
     // check if price exists
-    if(Object.keys(message['bid']['price']).length === 0 || message['bid']['price']['value'] == undefined) {
-        valid_offer = false;
+    if (Object.keys(message['bid']['price']).length === 0 || message['bid']['price']['value'] == undefined) {
+      permission.permit = false;
+      permission.rationale = 'did not include price in bid offer';
     }
   }
 
-  if (checkMessage(message) && permission.permit && valid_offer) {
+  if (checkMessage(message) && permission.permit) {
     if (get(message, ['bid', 'type'], null) === 'Accept') {
       let responses = await sendMessages(sendConfirmAccept, message, humanNegotiatorIDs);
       for (const response of responses) {
@@ -172,6 +177,7 @@ app.post('/relayMessage', async (req, res) => {
       }
       updateTotals(roundInfo, message);
     }
+    logMessage(message, true, null);
     queueMessage(roundInfo.queue, message);
 
     const agentMessage = Object.assign({}, message);
