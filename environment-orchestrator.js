@@ -141,7 +141,28 @@ app.post('/relayMessage', async (req, res) => {
 
   const bidType = get(message, ['bid', 'type'], null);
 
-  if (checkMessage(message) && permission.permit) {
+  let valid_offer = true;
+  if(toLower(message['speaker']) !== "human" && message['bid']['type'] !== undefined && (message['bid']['type'] == "Accept" || 
+                                                                           message['bid']['type'] == "AcceptOffer" || 
+                                                                           message['bid']['type'] == "SellOffer")) {                               
+    // check if quantities exist and all have values
+    if(Object.keys(message['bid']['quantity']).length === 0) {
+        valid_offer = false;
+    } else {
+        for(item in message['bid']['quantity']) {
+            if(message['bid']['quantity'][item] == undefined) {
+                valid_offer = false;
+            }
+        }
+    }
+
+    // check if price exists
+    if(Object.keys(message['bid']['price']).length === 0 || message['bid']['price']['value'] == undefined) {
+        valid_offer = false;
+    }
+  }
+
+  if (checkMessage(message) && permission.permit && valid_offer) {
     if (get(message, ['bid', 'type'], null) === 'Accept') {
       let responses = await sendMessages(sendConfirmAccept, message, humanNegotiatorIDs);
       for (const response of responses) {
