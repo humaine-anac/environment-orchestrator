@@ -290,8 +290,16 @@ app.post('/startRound', async (req, res) => {
     return res.json({"msg": "No POST body provided."});
   }
 
-  const roundId = req.body.roundId;
-  let roundInfo = rounds[roundId];
+  let roundId;
+  let roundInfo;
+  if(appSettings.standalone) {
+    roundId = "true";
+    rounds[roundId] = req.body;
+    roundInfo = req.body;
+  } else {
+    roundId = req.body.roundId;
+    roundInfo = rounds[roundId];
+  }
   let durations = roundInfo.durations;
 
   logExpression("Received body: ", 2);
@@ -625,7 +633,7 @@ function postDataToServiceType(json, serviceID, path) {
   if (!serviceMap[serviceID]) {
     throw new Error(`Invalid service: ${serviceID}`);
   }
-
+  
   let options = serviceMap[serviceID];
   options.path = path;
   let url = optionsToUrl(options);
