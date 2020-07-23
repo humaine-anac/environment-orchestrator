@@ -295,11 +295,10 @@ app.post('/startRound', async (req, res) => {
   if(appSettings.standalone) {
     roundId = "true";
     rounds[roundId] = req.body;
-    roundInfo = req.body;
   } else {
     roundId = req.body.roundId;
-    roundInfo = rounds[roundId];
   }
+  roundInfo = rounds[roundId];
   let durations = roundInfo.durations;
 
   logExpression("Received body: ", 2);
@@ -419,6 +418,33 @@ app.post('/startRound', async (req, res) => {
   catch (err) {
     res.json(err);
   }
+});
+
+app.post('/endRound', async (req, res) => {
+  if(!req.body) {
+    return res.json({"msg": "No POST body provided."});
+  }
+  
+  roundId = req.body.roundId
+  roundInfo = rounds[roundId];
+  
+  // cancel any open timeouts
+  for(item in roundInfo){
+      if(item.promise) {
+          item.cancel();
+      }
+  }
+
+  // end round for both agents
+  let endRoundMessage = {
+    roundId,
+    timestamp: new Date()
+  };
+
+  let negotiatorIDs = roundInfo.agents.map(nBlock => nBlock.name);
+  sendMessages(endRound, endRoundMessage, negotiatorIDs);
+
+  res.json({body: 'Acknowledged'});
 });
 
 http.createServer(app).listen(app.get('port'), () => {
