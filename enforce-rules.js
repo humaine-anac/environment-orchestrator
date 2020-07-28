@@ -139,6 +139,22 @@ function rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce) {
         permit = true;
         rationale = null;
 
+        let lastMemberUtterance = queue[queue.length-1];
+
+        if (isSpeakerBot(lastMemberUtterance.msg)){
+          // if the non-addressed agent responds, any response then from the addressed agent should be blocked,
+          //to retain the idea that the non-addressed agent can "steal" a reply round.
+          if (lastMemberUtterance.msg.speaker!=message.speaker){
+
+            logExpression("case 5", 2);
+
+            permit = false;
+            rationale = "The unaddressed agent just replied the sentence."
+          }
+
+        }
+
+
       }
 
      }
@@ -150,7 +166,6 @@ function rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce) {
 
          //Fixing. There is no restriction on "agents speaking on top of each other", if flag canTalkAtOnce is true.
          if (!canTalkAtOnce){
-           console.log("entrou canTalkAtOnce")
 
            let now = new Date();
            if (message.now){
