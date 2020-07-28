@@ -430,7 +430,6 @@ app.post('/endRound', async (req, res) => {
   roundId = req.body.roundId
   roundInfo = rounds[roundId];
   
-  // cancel any open timeouts
   for (item in roundInfo){
     if (item.promise) {
       item.cancel();

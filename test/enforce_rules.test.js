@@ -20,8 +20,19 @@ describe('rule1Evaluation', () => {
         [{"type": "Accept", "price": {"value": 51}}, 50, {permit: false, rationale: "Insufficient budget"}],
         [{"type": "Accept"}, 50, {permit: true, rationale: null}]
     ])("Given bid %j and budget %s, expect %j", (bid, budget, expected) => {
-        test.name = "abc";
         const testData = Object.assign({}, data, {bid});
         expect(rule1Evaluation(testData, budget)).toEqual(expected);
+    });
+});
+
+// RULE4EVALUATION
+describe('rule4Evaluation', () => {
+    test.each([
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u"}, {permit: true, rationale: null}],
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v"}, {permit: true, rationale: null}],
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w"}, {permit: false, rationale: "Excessive message length"}],
+        [{}, {permit: true, rationale: null}]
+    ])(`Given text %s, expect %j`, (text, expected) => {
+        expect(rule4Evaluation(text)).toEqual(expected);
     });
 });
