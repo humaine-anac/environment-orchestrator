@@ -353,5 +353,5 @@ function allowMessage(message, humanBudget, queue) {
 
 // Export these functions
 exports = module.exports = {
-  allowMessage
+  allowMessage, rule1Evaluation, rule4Evaluation
 };
