@@ -1,4 +1,4 @@
-let {rule1Evaluation, rule4Evaluation} = require("./enforce-rules");
+let {rule1Evaluation, rule4Evaluation} = require("../enforce-rules");
 
 // RULE1EVALUATION
 describe('rule1Evaluation', () => {
@@ -25,24 +25,3 @@ describe('rule1Evaluation', () => {
         expect(rule1Evaluation(testData, budget)).toEqual(expected);
     });
 });
-
-// RULE4EVALUATION
-// Test if message.len < 100 passes
-// test('rule1 len < 100 pass', () => {
-//     expect(rule4Evaluation(test_data.rule4.test1)).toEqual({permit: true, rationale: null});
-// });
-
-// // Test if message.len === 100 fails
-// test('rule1 len = 100 pass', () => {
-//     expect(rule4Evaluation(test_data.rule4.test2)).toEqual({permit: true, rationale: null});
-// });
-
-// // Test if message.len > 100 fails
-// test('rule1 len > 100 pass', () => {
-//     expect(rule4Evaluation(test_data.rule4.test3)).toEqual({permit: false, rationale: "Excessive message length"});
-// });
-
-// // Test if function passes without ['text'] given
-// test('rule1 no text given pass', () => {
-//     expect(rule4Evaluation(test_data.rule4.test4)).toEqual({permit: true, rationale: null});
-// });
