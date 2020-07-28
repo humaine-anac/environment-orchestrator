@@ -1,8 +1,12 @@
 const fs = require('fs');
 const {allowMessage} = require('../enforce-rules');
+const appSettings = require('../appSettings.json');
+
 queue = [];
 errorMsgs = [];
 msgs = [];
+let responseTimeLimit = appSettings.responseTimeLimit || 4000;
+let canTalkAtOnce = appSettings.canTalkAtOnce;
 
 function queueMessage(message) {
   let msg = JSON.parse(JSON.stringify(message));
@@ -66,7 +70,9 @@ try {
           console.log("------------------------message------------------------------")
           console.log(message)
           console.log("-------------------------------------------------------------")
-          let permission = allowMessage(message, 50000, queue);
+          // let permission = allowMessage(message, 50000, queue);
+          let permission = allowMessage(message, 50000, queue, responseTimeLimit, canTalkAtOnce);
+
 
           if ((permission.permit==true && fields[3]=="accepted")||(permission.permit==false && fields[3]=="blocked")){
             console.log("test ok")

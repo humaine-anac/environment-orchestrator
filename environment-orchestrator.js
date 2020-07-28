@@ -15,6 +15,8 @@ const {allowMessage} = require('./enforce-rules');
 let myPort = argv.port || appSettings.defaultPort || 14010;
 let logLevel = 1;
 const rounds = {};
+let responseTimeLimit = appSettings.responseTimeLimit || 4000;
+let canTalkAtOnce = appSettings.canTalkAtOnce;
 
 if (argv.level) {
   logLevel = argv.level;
@@ -68,7 +70,7 @@ app.get('/sendOffer', (req, res) => {
 
   let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
   let negotiatorIDs = roundInfo.negotiatorsInfo.map(nBlock => nBlock.name);
-  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
+  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue, responseTimeLimit, canTalkAtOnce);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
 
@@ -114,7 +116,7 @@ app.post('/relayMessage', async (req, res) => {
   let humanNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'human').map(nBlock => nBlock.name);
   let agentNegotiatorIDs = roundInfo.negotiatorsInfo.filter(nBlock => nBlock.type === 'agent').map(nBlock => nBlock.name);
 
-  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue);
+  let permission = allowMessage(message, roundInfo.humanBudget.value, roundInfo.queue, responseTimeLimit, canTalkAtOnce);
   logExpression("permission is: ", 2);
   logExpression(permission, 2);
 
@@ -659,7 +661,7 @@ function postDataToServiceType(json, serviceID, path) {
   if (!serviceMap[serviceID]) {
     throw new Error(`Invalid service: ${serviceID}`);
   }
-  
+
   let options = serviceMap[serviceID];
   options.path = path;
   let url = optionsToUrl(options);
