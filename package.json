@@ -4,6 +4,7 @@
   "private": true,
   "main": "environment-orchestrator.js",
   "scripts": {
+    "test": "jest",
     "start": "node environment-orchestrator.js -port 14010 -level 2 > eo001.log &",
     "pretest": "eslint --ignore-path .gitignore .",
     "start-docker": "node environment-orchestrator.js -level 2"
@@ -17,7 +18,9 @@
     "@cisl/zepto-logger": "^1.1.0",
     "@humaine/utils": "^0.2.0",
     "dotenv": "^4.0.0",
+    "eslint": "^7.5.0",
     "express": "^4.16.0",
+    "jest": "^26.1.0",
     "lodash": "^4.17.19",
     "minimist": "^1.2.5",
     "prettier": "^1.16.1",
