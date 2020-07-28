@@ -65,7 +65,7 @@ function rule1Evaluation(message, humanBudget) {
 }
 
 //TBD
-function rule2Evaluation(message, queue) {
+function rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce) {
 
   //R2: If an agent is addressed, it has the first right to respond.
   //It must do so within two seconds;
@@ -121,7 +121,8 @@ function rule2Evaluation(message, queue) {
 
       }
       else
-      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff>2000){
+      // if (lastHumanUtterance.msg.addressee==message.speaker && tDiff>2000){
+      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff>responseTimeLimit){
 
         logExpression("case 3", 2);
 
@@ -130,7 +131,8 @@ function rule2Evaluation(message, queue) {
 
       }
       else
-      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff<=2000){
+      // if (lastHumanUtterance.msg.addressee==message.speaker && tDiff<=2000){
+      if (lastHumanUtterance.msg.addressee==message.speaker && tDiff<=responseTimeLimit){
 
         logExpression("case 4", 2);
 
@@ -146,20 +148,26 @@ function rule2Evaluation(message, queue) {
 
        if (isSpeakerBot(lastMemberUtterance.msg)){
 
-         let now = new Date();
-         if (message.now){
-           now = new Date(message.now)
-         }
-         lastMemberUtteranceTime = new Date(lastMemberUtterance.timeStamp);
-         let tDiff = now.getTime() - lastMemberUtteranceTime.getTime();
-         logExpression("case 5", 2);
-         logExpression("now = " + now.getTime(), 2);
-         logExpression("lastMemberUtteranceTime = " + lastMemberUtteranceTime.getTime(), 2);
-         logExpression("tDiff = " + tDiff, 2);
+         //Fixing. There is no restriction on "agents speaking on top of each other", if flag canTalkAtOnce is true.
+         if (!canTalkAtOnce){
+           console.log("entrou canTalkAtOnce")
 
-         if (tDiff<30){
-           permit = false;
-           rationale = "Agents speaking at same time";
+           let now = new Date();
+           if (message.now){
+             now = new Date(message.now)
+           }
+           lastMemberUtteranceTime = new Date(lastMemberUtterance.timeStamp);
+           let tDiff = now.getTime() - lastMemberUtteranceTime.getTime();
+           logExpression("case 5", 2);
+           logExpression("now = " + now.getTime(), 2);
+           logExpression("lastMemberUtteranceTime = " + lastMemberUtteranceTime.getTime(), 2);
+           logExpression("tDiff = " + tDiff, 2);
+
+           if (tDiff<30){
+             permit = false;
+             rationale = "Agents speaking at same time";
+           }
+
          }
 
        }
@@ -239,7 +247,7 @@ function rule4Evaluation(message) {
 }
 
 // Decide whether to allow or block a message (and in the latter case provide a rationale)
-function allowMessage(message, humanBudget, queue) {
+function allowMessage(message, humanBudget, queue, responseTimeLimit, canTalkAtOnce) {
 
   let permit = true;
   let rationale = null;
@@ -247,7 +255,7 @@ function allowMessage(message, humanBudget, queue) {
   let rules = [];
   rules[0] = rule0Evaluation(message, queue);
   rules[1] = rule1Evaluation(message, humanBudget);
-  rules[2] = rule2Evaluation(message, queue);
+  rules[2] = rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce);
   rules[3] = rule3Evaluation(message, queue);
   rules[4] = rule4Evaluation(message);
 
