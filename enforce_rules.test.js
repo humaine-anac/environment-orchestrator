@@ -56,27 +56,12 @@ let test_data = require("./enforce_rules_test_data.json");
 
 // RULE4EVALUATION
 describe('rule4Evaluation', () => {
-    // Test if message.len < 100 passes
-    test('len < 100 pass', () => {
-        const text = {"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u"};
-        expect(rule4Evaluation(text)).toEqual({permit: true, rationale: null});
-    });
-
-    // Test if message.len === 100 fails
-    test('len = 100 pass', () => {
-        const text = {"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v"};
-        expect(rule4Evaluation(text)).toEqual({permit: true, rationale: null});
-    });
-
-    // Test if message.len > 100 fails
-    test('len > 100 pass', () => {
-        const text = {"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w"};
-        expect(rule4Evaluation(text)).toEqual({permit: false, rationale: "Excessive message length"});
-    });
-
-    // Test if function passes without ['text'] given
-    test('no text given pass', () => {
-        const text = {}
-        expect(rule4Evaluation(text)).toEqual({permit: true, rationale: null});
+    test.each([
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u"}, {permit: true, rationale: null}],
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v"}, {permit: true, rationale: null}],
+        [{"text": "a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w x y z a b c d e f g h i j k l m n o p q r s t u v w"}, {permit: false, rationale: "Excessive message length"}],
+        [{}, {permit: true, rationale: null}]
+    ])(`Given text %s, expect %s`, (text, expected) => {
+        expect(rule4Evaluation(text)).toEqual(expected);
     });
 });
