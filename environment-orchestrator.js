@@ -429,10 +429,10 @@ app.post('/endRound', async (req, res) => {
   roundInfo = rounds[roundId];
   
   // cancel any open timeouts
-  for(item in roundInfo){
-      if(item.promise) {
-          item.cancel();
-      }
+  for (item in roundInfo){
+    if (item.promise) {
+      item.cancel();
+    }
   }
 
   // end round for both agents
