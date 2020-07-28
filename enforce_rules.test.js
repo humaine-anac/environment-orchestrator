@@ -19,7 +19,7 @@ describe('rule1Evaluation', () => {
         [{"type": "Accept", "price": {"value": 50}}, 50, {permit: true, rationale: null}],
         [{"type": "Accept", "price": {"value": 51}}, 50, {permit: false, rationale: "Insufficient budget"}],
         [{"type": "Accept"}, 50, {permit: true, rationale: null}]
-    ])("Given bid %s and budget %s, expect %s", (bid, budget, expected) => {
+    ])("Given bid %j and budget %s, expect %j", (bid, budget, expected) => {
         test.name = "abc";
         const testData = Object.assign({}, data, {bid});
         expect(rule1Evaluation(testData, budget)).toEqual(expected);
