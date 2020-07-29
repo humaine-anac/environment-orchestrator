@@ -1,4 +1,4 @@
-let {rule1Evaluation, rule4Evaluation} = require("../enforce-rules");
+let {rule1Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation} = require("../enforce-rules");
 
 // RULE1EVALUATION
 describe('rule1Evaluation', () => {
@@ -34,5 +34,15 @@ describe('rule4Evaluation', () => {
         [{}, {permit: true, rationale: null}]
     ])(`Given text %s, expect %j`, (text, expected) => {
         expect(rule4Evaluation(text)).toEqual(expected);
+    });
+});
+
+// ISSPEAKERBOT
+describe('isSpeakerBot', () => {
+    test.each([
+        [{"speaker": "Human"}, false],
+        [{"speaker": "Watson"}, true]
+    ])(`Given text %s, expect %j`, (data, expected) => {
+        expect(isSpeakerBot(data)).toEqual(expected);
     });
 });
