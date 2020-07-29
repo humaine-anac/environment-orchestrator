@@ -376,5 +376,5 @@ function allowMessage(message, humanBudget, queue, responseTimeLimit, canTalkAtO
 
 // Export these functions
 exports = module.exports = {
-  allowMessage, rule1Evaluation, rule4Evaluation
+  rule1Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation
 };
