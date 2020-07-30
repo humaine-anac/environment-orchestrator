@@ -42,7 +42,68 @@ describe('isSpeakerBot', () => {
     test.each([
         [{"speaker": "Human"}, false],
         [{"speaker": "Watson"}, true]
-    ])(`Given text %s, expect %j`, (data, expected) => {
+    ])(`Given text %s, expect %s`, (data, expected) => {
         expect(isSpeakerBot(data)).toEqual(expected);
     });
 });
+
+// RULE0EVALUATION
+describe('rule0evaluation', () => {
+    const message = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "speaker": "Human",
+        "role": "seller",
+        "addressee": "Watson",
+        "roundId": "true"
+    };
+
+    const queue = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "addressee": "Watson",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date()
+        }
+    ];
+
+    const large_queue = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "addressee": "Watson",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date()
+        },
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "addressee": "Watson",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date()
+        }
+    ];
+
+    test.each([
+        [1, message, queue, "Human", new Date() + 0.6, {permit: true, rationale: null}],
+        [2, message, queue, "Human", new Date() + 0.5, {permit: true, rationale: null}],
+        [3, message, queue, "Human", new Date() - 1, {permit: false, rationale: "Recent human utterance."}],
+        [4, message, [], "Human", new Date(), {permit: true, rationale: null}],
+        [5, message, large_queue, "Human", new Date() + 1, {permit: false, rationale: "Recent human utterance."}],
+        [6, message, queue, "Watson", new Date(), {permit: true, rationale: null}]
+    ])("Given message %j, queue %j, speaker %s, and time %s: expect %j", (id, message, queue, speaker, now, expected) => {
+        let testMessage = Object.assign({}, message, {now});
+        testMessage = Object.assign({}, testMessage, {speaker});
+        expect(rule0Evaluation(testMessage, queue)).toEqual(expected);
+    });
+});
+
