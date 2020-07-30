@@ -96,7 +96,7 @@ describe('rule0evaluation', () => {
     test.each([
         [1, message, queue, "Human", new Date() + 0.6, {permit: true, rationale: null}],
         [2, message, queue, "Human", new Date() + 0.5, {permit: true, rationale: null}],
-        [3, message, queue, "Human", new Date() - 1, {permit: false, rationale: "Recent human utterance."}],
+        [3, message, queue, "Human", new Date() - 10, {permit: false, rationale: "Recent human utterance."}],
         [4, message, [], "Human", new Date(), {permit: true, rationale: null}],
         [5, message, large_queue, "Human", new Date() + 1, {permit: false, rationale: "Recent human utterance."}],
         [6, message, queue, "Watson", new Date(), {permit: true, rationale: null}]
