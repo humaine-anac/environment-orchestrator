@@ -106,4 +106,3 @@ describe('rule0evaluation', () => {
         expect(rule0Evaluation(testMessage, queue)).toEqual(expected);
     });
 });
-
