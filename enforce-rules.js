@@ -25,7 +25,7 @@ function rule0Evaluation(message, queue) {
          return mBlock.msg.speaker == "Human";
       });
       let aQueue = queue.filter(mBlock => {
-         return mBlock.msg.speaker == "Watson" || mBlock.msg.speaker == "Celia";
+         return ['Watson', 'Celia'].includes(mBlock.msg.speaker);
       });
 
       if(hQueue && hQueue.length) {
