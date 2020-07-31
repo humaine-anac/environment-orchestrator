@@ -293,14 +293,13 @@ app.post('/startRound', async (req, res) => {
   }
 
   let roundId;
-  let roundInfo;
   if(appSettings.standalone) {
     roundId = "true";
     rounds[roundId] = req.body;
   } else {
     roundId = req.body.roundId;
   }
-  roundInfo = rounds[roundId];
+  let roundInfo = rounds[roundId];
   let durations = roundInfo.durations;
 
   logExpression("Received body: ", 2);
@@ -416,6 +415,8 @@ app.post('/startRound', async (req, res) => {
     logExpression(roundTotalsMessage, 2);
     logExpression(humanNegotiatorIDs, 2);
     sendMessages(totalRound, roundTotalsMessage, humanNegotiatorIDs);
+
+    delete rounds[roundId];
   }
   catch (err) {
     res.json(err);
@@ -444,6 +445,8 @@ app.post('/endRound', async (req, res) => {
 
   let negotiatorIDs = roundInfo.agents.map(nBlock => nBlock.name);
   sendMessages(endRound, endRoundMessage, negotiatorIDs);
+
+  delete rounds[roundId];
 
   res.json({body: 'Acknowledged'});
 });
