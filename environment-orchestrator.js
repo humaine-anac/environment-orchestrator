@@ -427,10 +427,14 @@ app.post('/endRound', async (req, res) => {
   if(!req.body) {
     return res.json({"msg": "No POST body provided."});
   }
-  
+
   roundId = req.body.roundId
   roundInfo = rounds[roundId];
-  
+
+  if (!roundInfo) {
+    return res.json({status: 'error', message: `unknown roundId: ${roundId}`});
+  }
+
   for (item in roundInfo){
     if (item.promise) {
       item.cancel();
