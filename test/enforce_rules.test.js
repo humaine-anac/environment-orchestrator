@@ -121,7 +121,7 @@ describe('rule0evaluation', () => {
         [message, queue, "Human", new Date(Date.now() + 500), {permit: true, rationale: null}],
         [message, queue, "Human", new Date(Date.now() - 500), {permit: false, rationale: "Recent human utterance."}],
         [message, [], "Human", new Date(), {permit: true, rationale: null}],
-        [message, large_queue, "Human", new Date(Date.now() + 0.2), {permit: false, rationale: "Recent human utterance."}],
+        [message, large_queue, "Human", new Date(), {permit: false, rationale: "Recent human utterance."}],
         [message, agent_queue, "Human", new Date(Date.now() + 0.2), {permit: true, rationale: null}],
         [message, queue, "Watson", new Date(), {permit: true, rationale: null}]
     ])("Given message %j, queue %j, speaker %s, and time %s: expect %j", (message, queue, speaker, now, expected) => {
