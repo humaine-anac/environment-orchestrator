@@ -24,6 +24,10 @@ function rule0Evaluation(message, queue) {
       let hQueue = queue.filter(mBlock => {
          return mBlock.msg.speaker == "Human";
       });
+      let aQueue = queue.filter(mBlock => {
+         return ['Watson', 'Celia'].includes(mBlock.msg.speaker);
+      });
+
       if(hQueue && hQueue.length) {
          let lastHumanUtteranceTime = hQueue[hQueue.length-1].timeStamp;
          let now = new Date();
@@ -32,7 +36,16 @@ function rule0Evaluation(message, queue) {
          }
          let tDiff = now.getTime() - lastHumanUtteranceTime.getTime();
          logExpression("tDiff = " + tDiff, 2);
-         if(tDiff < 5000) {
+
+         let lastAgentUtteranceTime;
+         let tDiffAgent = tDiff;
+         if(aQueue && aQueue.length) {
+            lastAgentUtteranceTime = aQueue[aQueue.length-1].timeStamp;
+            tDiffAgent = now.getTime() - lastAgentUtteranceTime.getTime();
+            logExpression("tDiffAgent = " + tDiffAgent, 2);
+         }
+
+         if(tDiff < 0.5 && tDiffAgent >= tDiff) {
             permit = false;
             rationale = "Recent human utterance.";
          }
