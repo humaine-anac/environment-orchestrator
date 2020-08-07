@@ -69,7 +69,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": now
+            "timeStamp": new Date(now)
         }
     ];
 
@@ -82,7 +82,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date(now - 0.2)
+            "timeStamp": new Date(Date.now(now) - 0.2)
         },
         {
             "msg": {
@@ -92,7 +92,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": now
+            "timeStamp": new Date(now)
         }
     ];
 
@@ -115,7 +115,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": now
+            "timeStamp": new Date(now)
         }
     ];
 
@@ -123,10 +123,10 @@ describe('rule0evaluation', () => {
         [message, queue, "Human", new Date(now + 600), {permit: true, rationale: null}],
         [message, queue, "Human", new Date(now + 500), {permit: true, rationale: null}],
         [message, queue, "Human", new Date(now - 500), {permit: false, rationale: "Recent human utterance."}],
-        [message, [], "Human", now, {permit: true, rationale: null}],
-        [message, large_queue, "Human", now, {permit: false, rationale: "Recent human utterance."}],
+        [message, [], "Human", new Date(now), {permit: true, rationale: null}],
+        [message, large_queue, "Human", new Date(now), {permit: false, rationale: "Recent human utterance."}],
         [message, agent_queue, "Human", new Date(now + 0.2), {permit: true, rationale: null}],
-        [message, queue, "Watson", now, {permit: true, rationale: null}]
+        [message, queue, "Watson", new Date(now), {permit: true, rationale: null}]
     ])("Given message %j, queue %j, speaker %s, and time %s: expect %j", (message, queue, speaker, now, expected) => {
         let testMessage = Object.assign({}, message, {now});
         testMessage = Object.assign({}, testMessage, {speaker});
