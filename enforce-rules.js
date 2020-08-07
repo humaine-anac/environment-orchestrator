@@ -392,6 +392,8 @@ exports = module.exports = {
   allowMessage,
   rule0Evaluation,
   rule1Evaluation,
+  rule2Evaluation,
+  rule3Evaluation,
   rule4Evaluation,
   isSpeakerBot
 };

@@ -1,4 +1,4 @@
-let {rule1Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation} = require("../enforce-rules");
+let {rule1Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation, rule3Evaluation} = require("../enforce-rules");
 
 // RULE1EVALUATION
 describe('rule1Evaluation', () => {
@@ -128,5 +128,44 @@ describe('rule0evaluation', () => {
         let testMessage = Object.assign({}, message, {now});
         testMessage = Object.assign({}, testMessage, {speaker});
         expect(rule0Evaluation(testMessage, queue)).toEqual(expected);
+    });
+});
+
+describe('rule3evaluation', ()=> {
+
+    const humanMessage = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "speaker": "Human",
+        "role": "Buyer",
+        "addressee": "Watson",
+        "roundId": "true"
+    };
+
+    const watsonMessage = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "speaker": "Watson",
+        "role": "seller",
+        "addressee": "Human",
+        "roundId": "true"
+    };
+
+    const celiaMessage = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "speaker": "Celia",
+        "role": "seller",
+        "addressee": "Human",
+        "roundId": "true"
+    };
+
+    test.each([
+        [watsonMessage, [{"msg": humanMessage}], {permit: true, rationale: null}],
+        [humanMessage, [{"msg": humanMessage}], {permit: true, rationale: null}],
+        [watsonMessage, [{"msg": humanMessage}, {"msg": celiaMessage}], {permit: true, rationale: null}],
+        [watsonMessage, [{"msg": humanMessage}, {"msg": watsonMessage}, {"msg": celiaMessage}], {permit: false, rationale: "Quantity of agents messages exceeded"}],
+        [watsonMessage, [{"msg": humanMessage}, {"msg": watsonMessage}], {permit: false, rationale: "Agent speaking twice"}],
+        [celiaMessage, [{"msg": humanMessage}, {"msg": celiaMessage}, {"msg": humanMessage}], {permit: true, rationale: null}],
+        [watsonMessage, [{"msg": humanMessage}, {"msg": celiaMessage}, {"msg": watsonMessage}, {"msg": humanMessage}], {permit: true, rationale: null}],
+    ])("%s", (message, queue, expected) => {
+        expect(rule3Evaluation(message, queue)).toEqual(expected);
     });
 });
