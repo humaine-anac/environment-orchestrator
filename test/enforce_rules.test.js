@@ -82,7 +82,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date(Date.now(now) - 0.2)
+            "timeStamp": new Date(now - 0.2)
         },
         {
             "msg": {
