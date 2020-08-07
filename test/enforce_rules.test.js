@@ -49,6 +49,9 @@ describe('isSpeakerBot', () => {
 
 // RULE0EVALUATION
 describe('rule0evaluation', () => {
+
+    const now = Date.now();
+
     const message = {
         "text": "I'll buy 3 egg for 4 USD.",
         "speaker": "Human",
@@ -66,7 +69,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date()
+            "timeStamp": new Date(now)
         }
     ];
 
@@ -79,7 +82,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date(Date.now() - 0.2)
+            "timeStamp": new Date(now - 0.2)
         },
         {
             "msg": {
@@ -89,7 +92,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date()
+            "timeStamp": new Date(now)
         }
     ];
 
@@ -102,7 +105,7 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date(Date.now() - 0.2)
+            "timeStamp": new Date(now - 0.2)
         },
         {
             "msg": {
@@ -112,18 +115,18 @@ describe('rule0evaluation', () => {
             "text": "Watson, I will buy 3 eggs for $4",
             "role": "buyer"
             },
-            "timeStamp": new Date()
+            "timeStamp": new Date(now)
         }
     ];
 
     test.each([
-        [message, queue, "Human", new Date(Date.now() + 600), {permit: true, rationale: null}],
-        [message, queue, "Human", new Date(Date.now() + 500), {permit: true, rationale: null}],
-        [message, queue, "Human", new Date(Date.now() - 500), {permit: false, rationale: "Recent human utterance."}],
-        [message, [], "Human", new Date(), {permit: true, rationale: null}],
-        [message, large_queue, "Human", new Date(), {permit: false, rationale: "Recent human utterance."}],
-        [message, agent_queue, "Human", new Date(Date.now() + 0.2), {permit: true, rationale: null}],
-        [message, queue, "Watson", new Date(), {permit: true, rationale: null}]
+        [message, queue, "Human", new Date(now + 600), {permit: true, rationale: null}],
+        [message, queue, "Human", new Date(now + 500), {permit: true, rationale: null}],
+        [message, queue, "Human", new Date(now - 500), {permit: false, rationale: "Recent human utterance."}],
+        [message, [], "Human", new Date(now), {permit: true, rationale: null}],
+        [message, large_queue, "Human", new Date(now), {permit: false, rationale: "Recent human utterance."}],
+        [message, agent_queue, "Human", new Date(now + 0.2), {permit: true, rationale: null}],
+        [message, queue, "Watson", new Date(now), {permit: true, rationale: null}]
     ])("Given message %j, queue %j, speaker %s, and time %s: expect %j", (message, queue, speaker, now, expected) => {
         let testMessage = Object.assign({}, message, {now});
         testMessage = Object.assign({}, testMessage, {speaker});
