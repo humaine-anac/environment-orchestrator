@@ -278,25 +278,23 @@ function rule4Evaluation(message) {
 function allowMessage(message, humanBudget, queue, responseTimeLimit, canTalkAtOnce) {
 
   let permit = true;
-  let rationale = null;
+  let rationale = [];
 
   let rules = [];
-  rules[0] = rule0Evaluation(message, queue);
-  rules[1] = rule1Evaluation(message, humanBudget);
-  rules[2] = rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce);
-  rules[3] = rule3Evaluation(message, queue);
-  rules[4] = rule4Evaluation(message);
+  rules.push(rule0Evaluation(message, queue));
+  rules.push(rule1Evaluation(message, humanBudget));
+  rules.push(rule2Evaluation(message, queue, responseTimeLimit, canTalkAtOnce));
+  rules.push(rule3Evaluation(message, queue));
+  rules.push(rule4Evaluation(message));
 
   rules.forEach(rule => {
    permit = permit && rule.permit;
-   if(!rule.permit) {
-      if(!rationale) rationale = "";
-      else {
-         rationale += ", ";
-      }
-      rationale += rule.rationale;
+   if (!rule.permit) {
+     rationale.push(rule.rationale);
    }
   });
+  
+  rationale = rationale.length > 0 ? rationale.join(', ') : null;
 
 /*
   if (permit){
