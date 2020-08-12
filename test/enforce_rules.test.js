@@ -1,4 +1,4 @@
-let {rule1Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation, rule3Evaluation} = require("../enforce-rules");
+let {rule1Evaluation, rule2Evaluation, rule4Evaluation, isSpeakerBot, rule0Evaluation, rule3Evaluation} = require("../enforce-rules");
 
 // RULE1EVALUATION
 describe('rule1Evaluation', () => {
@@ -170,5 +170,109 @@ describe('rule3evaluation', ()=> {
         [watsonMessage, [{"msg": humanMessage}, {"msg": celiaMessage}, {"msg": watsonMessage}, {"msg": humanMessage}], {permit: true, rationale: null}],
     ])("%s", (message, queue, expected) => {
         expect(rule3Evaluation(message, queue)).toEqual(expected);
+    });
+});
+
+// RULE2EVALUATION
+describe('rule2evaluation', () => {
+
+    const now = Date.now();
+
+    const message = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "role": "seller",
+        "addressee": "Human",
+        "roundId": "true"
+    };
+    const human_message = {
+        "text": "I'll buy 3 egg for 4 USD.",
+        "role": "seller",
+        "addressee": "Watson",
+        "roundId": "true"
+    };
+
+    const queue = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "addressee": "Watson",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now)
+        }
+    ];
+
+    const queue_no_addressee = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now - 0.2)
+        }
+    ];
+
+    const agent_queue = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "addressee": "Watson",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now - 0.2)
+        },
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Celia",
+            "addressee": "Human",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now)
+        }
+    ];
+
+    const large_queue_no_addressee = [
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Human",
+            "text": "Watson, I will buy 3 eggs for $4",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now - 0.2)
+        },
+        {
+            "msg": {
+            "roundId": "true",
+            "speaker": "Celia",
+            "text": "Deal",
+            "role": "buyer"
+            },
+            "timeStamp": new Date(now)
+        }
+    ];
+
+    test.each([
+        [message, queue, "Celia", new Date(now + 3000), 2000, false, {permit: true, rationale: null}],
+        [message, queue, "Celia", new Date(now), 2000, false, {permit: false, rationale: "Premature response from unaddressed agent"}],
+        [message, queue, "Watson", new Date(now + 4000), 3000, false, {permit: false, rationale: "Addressee message delayed"}],
+        [message, queue, "Watson", new Date(now + 2000), 3000, false, {permit: true, rationale: null}],
+        [message, agent_queue, "Watson", new Date(now + 2000), 3000, false, {permit: false, rationale: "The unaddressed agent just replied the sentence."}],
+        [human_message, queue, "Human", new Date(now), 2000, false, {permit: true, rationale: null}],
+        [message, queue_no_addressee, "Watson", new Date(now), 2000, true, {permit: true, rationale: null}],
+        [message, large_queue_no_addressee, "Watson", new Date(now), 2000, false, {permit: false, rationale: "Agents speaking at same time"}],
+        [message, large_queue_no_addressee, "Watson", new Date(now + 50), 2000, false, {permit: true, rationale: null}]
+    ])("Given message %j, queue %j, speaker %s, and time %s: expect %j", (message, queue, speaker, now, responseTimeLimit, canTalkAtOnce, expected) => {
+        let testMessage = Object.assign({}, message, {now});
+        testMessage = Object.assign({}, testMessage, {speaker});
+        expect(rule2Evaluation(testMessage, queue, responseTimeLimit, canTalkAtOnce)).toEqual(expected);
     });
 });
